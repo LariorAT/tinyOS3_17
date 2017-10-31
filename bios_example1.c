@@ -1,6 +1,6 @@
 #include <bios.h>
 #include <stdio.h>
-
+/*sadasd8*/
 void bootfunc() {
   fprintf(stderr, "Hello from core %u\n", cpu_core_id);
 }
