@@ -130,7 +130,7 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
   tcb->owner_pcb = pcb;
 
   /* Initialize the other attributes */
-  tcb->priority = 0;
+  tcb->priority = 1; /*priority first set*/
   tcb->type = NORMAL_THREAD;
   tcb->state = INIT;
   tcb->phase = CTX_CLEAN;
@@ -203,11 +203,11 @@ CCB cctx[MAX_CORES];
   Both of these structures are protected by @c sched_spinlock.
 */
 
-
+/***Used for boosting low priority threads*/
 int THREADS_FREE = 0;
 
 
-rlnode SCHED[NumOfSchLists];                         /* The scheduler array of priority queues */
+rlnode SCHED[NumOfSchLists];                         /*** The scheduler array of priority queues */
 rlnode TIMEOUT_LIST;				  /* The list of threads with a timeout */
 Mutex sched_spinlock = MUTEX_INIT;    /* spinlock for scheduler queue */
 
@@ -297,8 +297,32 @@ static void sched_make_ready(TCB* tcb)
 
   *** MUST BE CALLED WITH sched_spinlock HELD ***
 */
-static TCB* sched_queue_select()
+static TCB* sched_queue_select(enum SCHED_CAUSE cause)
 {
+   TCB* current = CURTHREAD;  /* Make a local copy of current process, for speed */
+
+ /***Set priority of current thread according to cause*/
+  switch(cause)
+  {
+    case SCHED_IO:
+      if(current->priority>0)
+      --current->priority;
+    break;
+    case SCHED_QUANTUM:
+      if(current->priority<2)
+      ++current->priority;
+    case SCHED_MUTEX:
+      if(current->previousCause)
+      if(current->priority<2)
+      ++current->priority;  
+    break;
+    default:
+    break;
+  }
+  current->previousCause = cause;
+
+
+
 
   /* Empty the timeout list up to the current time and wake up each thread */
   TimerDuration curtime = bios_clock();
@@ -312,7 +336,7 @@ static TCB* sched_queue_select()
   /***When  a certain  number of tcbs has been released 
    moves everythings in the priority lists in a higher level */
   int i;
-  if(THREADS_FREE>10)
+  if(THREADS_FREE>40)
   {
     for(i=1;i<3;i++)
     {
@@ -325,8 +349,10 @@ static TCB* sched_queue_select()
 
   /*** Get the head of the first not empty SCHED list by priority */
   i=0;
-  while(i<2)
+
+  while(i<3)
   {
+
     rlnode * sel = rlist_pop_front(& SCHED[i]);
     if(!(sel->tcb==NULL))
       return sel->tcb;
@@ -435,25 +461,9 @@ void yield(enum SCHED_CAUSE cause)
       assert(0);  /* It should not be READY or EXITED ! */
   }
 
-  /***Set priority of current thread according to cause*/
-  switch(cause)
-  {
-    case SCHED_IO:
-      if(current->priority>0)
-      --current->priority;
-    break;
-    case SCHED_QUANTUM:
-      if(current->priority<2)
-      ++current->priority;
-    case SCHED_MUTEX:
-    break;
-    default:
-    break;
-  }
-
 
   /* Get next */
-  TCB* next = sched_queue_select();
+  TCB* next = sched_queue_select(cause);
 
   /* Maybe there was nothing ready in the scheduler queue ? */
   if(next==NULL) {
@@ -474,6 +484,7 @@ void yield(enum SCHED_CAUSE cause)
     CURTHREAD = next;
     cpu_swap_context( & current->context , & next->context );
   }
+
 
   /* This is where we get after we are switched back on! A long time 
      may have passed. Start a new timeslice... 
