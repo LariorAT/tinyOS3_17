@@ -13,8 +13,7 @@
  - WaitPid
  - GetPid
  - GetPPid
-
- */
+*/
 
 /* The process table */
 PCB PT[MAX_PROC];
@@ -30,19 +29,42 @@ Pid_t get_pid(PCB* pcb)
   return pcb==NULL ? NOPROC : pcb-PT;
 }
 
+/***Initialize a PTCB*/
+PTCB* initialize_PTCB(PCB* pcb)
+{
+  PTCB* p;
+  p->parent = pcb;
+
+  p->argl = 0;
+  p->args = NULL;
+
+  p->wait_var = COND_INIT;
+  p->waiting = 0;
+  p->isDetached = 0;
+  p->isExited = 0;
+  return p;
+}
+
 /* Initialize a PCB */
 static inline void initialize_PCB(PCB* pcb)
 {
+
   pcb->pstate = FREE;
-  pcb->argl = 0;
-  pcb->args = NULL;
+  //pcb->argl = 0;
+  //pcb->args = NULL;
+  pcb->counter = 0;
 
   for(int i=0;i<MAX_FILEID;i++)
     pcb->FIDT[i] = NULL;
 
   rlnode_init(& pcb->children_list, NULL);
   rlnode_init(& pcb->exited_list, NULL);
-  rlnode_init(& pcb->ptcb_list,NULL);//////////
+  rlnode_init(& pcb->ptcb_list, NULL);
+
+  PTCB* p = initialize_PTCB(pcb);
+  pcb->ptcb_node = p;
+
+  rlnode_init(& pcb->ptcb_node,p);
   rlnode_init(& pcb->children_node, pcb);
   rlnode_init(& pcb->exited_node, pcb);
 
@@ -119,9 +141,9 @@ void start_main_thread()
 {
   int exitval;
 
-  Task call =  CURPROC->main_task;
-  int argl = CURPROC->argl;
-  void* args = CURPROC->args;
+  Task call =  CURPROC->ptcb_node->main_task;
+  int argl = CURPROC->ptcb_node->argl;
+  void* args = CURPROC->ptcb_node->args;
 
   exitval = call(argl,args);
   Exit(exitval);
@@ -133,6 +155,7 @@ void start_main_thread()
  */
 Pid_t sys_Exec(Task call, int argl, void* args)
 {
+
   PCB *curproc, *newproc;
   
   /* The new process PCB */
@@ -158,22 +181,25 @@ Pid_t sys_Exec(Task call, int argl, void* args)
     for(int i=0; i<MAX_FILEID; i++) {
        newproc->FIDT[i] = curproc->FIDT[i];
        if(newproc->FIDT[i])
-          FCB_incref(newproc->FIDT[i]);
+          FCB_incref(newproc->FIDT[i]);                                                                
     }
   }
 
 
-  /* Set the main thread's function */
-  newproc->main_task = call;
-
-  /* Copy the arguments to new storage, owned by the new process */
-  newproc->argl = argl;
+  /* Set the main thread's function *///////////////////////////////////////////////////////////////////////////////
+  //newproc->main_task = call;
+  newproc->ptcb_node->main_task = call;
+  /* Copy the arguments to new storage, owned by the new process *//////////////////////////////////////////////////////////////////////
+  //newproc->argl = argl;
+  newproc->ptcb_node->argl = argl;
+  
   if(args!=NULL) {
-    newproc->args = malloc(argl);
-    memcpy(newproc->args, args, argl);
+    newproc->ptcb_node->args = malloc(argl);///
+    memcpy(newproc->ptcb_node->args, args, argl);
   }
   else
-    newproc->args=NULL;
+    newproc->ptcb_node->args=NULL; ///
+
 
   /* 
     Create and wake up the thread for the main function. This must be the last thing
@@ -181,11 +207,11 @@ Pid_t sys_Exec(Task call, int argl, void* args)
     the initialization of the PCB.
    */
   if(call != NULL) {
-    newproc->main_thread = spawn_thread(newproc, start_main_thread);
-    wakeup(newproc->main_thread);
+    newproc->ptcb_node->main_thread = spawn_thread(newproc, start_main_thread);
+    wakeup(newproc->ptcb_node->main_thread);
   }
 
-
+//printf("Creting a thread\n");////////////////////////////////////////////////////////////////////
 finish:
   return get_pid(newproc);
 }

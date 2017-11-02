@@ -41,37 +41,50 @@ typedef struct process_control_block {
   PCB* parent;            /**< Parent's pcb. */
   int exitval;            /**< The exit value */
 
-  TCB* main_thread;       /**< The main thread */
-  Task main_task;         /**< The main thread's function */
-  int argl;               /**< The main thread's argument length */
-  void* args;             /**< The main thread's argument string */
+  //TCB* main_thread;       /**< The main thread */
+  //Task main_task;         /**< The main thread's function */
+  //int argl;               /**< The main thread's argument length */
+  //void* args;             /**< The main thread's argument string */
 
+  int counter;            /***<The number of current ptcb*/ 
   rlnode children_list;   /**< List of children */
   rlnode exited_list;     /**< List of exited children */
-  rlnode ptcb_list;       /**< List of PTCBs */    
+  rlnode ptcb_list;       /***< List of PTCBs */    
 
+  rlnode ptcb_node;       /***< Intrusive node for @c ptcb_list */
   rlnode children_node;   /**< Intrusive node for @c children_list */
   rlnode exited_node;     /**< Intrusive node for @c exited_list */
+
 
   CondVar child_exit;     /**< Condition variable for @c WaitChild */
 
   FCB* FIDT[MAX_FILEID];  /**< The fileid table of the process */
 
 } PCB;
-/**
+
+/***
   @brief P Thread Control Block.
 
   This structure holds all information pertaining to a process'es PTCB.
  */
 typedef struct P_thread_control_block{
-  PCB* parent;            /**< pcb adress. */
-  int exitval;            /**< The exit value */
-  int argl;               /**< The main thread's argument length */
-  void* args;             /**< The main thread's argument string */
-  int waiting;             /**< Thenumber of the TCBs waitng*/
-  int isDetached;          /**< 1 if Detached, 0 else*/
-  int isExited;            /**< 1 if Exited, 0 else*/
-  Task task;                
+  PCB* parent;            /***< pcb adress. */
+  int exitval;            /***< The exit value */
+  rlnode ptcb_self_node;  /***< node to use when queueing in the PTCB list */
+
+  TCB* main_thread;       /**< The thread */
+  Task main_task;         /**< The thread's function */
+  int argl;               /**< The thread's argument length */
+  void* args;             /**< The thread's argument string */
+
+  CondVar wait_var ;     /**< Condition variable for @c Wait */
+
+  int waiting;             /***< Thenumber of the TCBs waitng*/
+  int isDetached;          /***< 1 if Detached, 0 else*/
+  int isExited;            /***< 1 if Exited, 0 else*/
+
+  
+   
 } PTCB;
 
 /**
@@ -81,6 +94,8 @@ typedef struct P_thread_control_block{
   any data structures related to process creation.
 */
 void initialize_processes();
+
+PTCB* initialize_PTCB(PCB* pcb);
 
 /**
   @brief Get the PCB for a PID.
