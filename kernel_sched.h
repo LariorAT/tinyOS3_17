@@ -175,7 +175,7 @@ extern int THREADS_FREE;
 
 
 /***Number of priority queues in scheduler*/
-#define NumOfSchLists 4
+#define NumOfSchLists 3
 
 
 
