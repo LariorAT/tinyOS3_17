@@ -51,7 +51,7 @@ typedef struct process_control_block {
   rlnode exited_list;     /**< List of exited children */
   rlnode ptcb_list;       /***< List of PTCBs */    
 
-  rlnode ptcb_node;       /***< Intrusive node for @c ptcb_list */
+  //rlnode ptcb_node;       /***< Intrusive node for @c ptcb_list */
   rlnode children_node;   /**< Intrusive node for @c children_list */
   rlnode exited_node;     /**< Intrusive node for @c exited_list */
 
@@ -68,9 +68,11 @@ typedef struct process_control_block {
   This structure holds all information pertaining to a process'es PTCB.
  */
 typedef struct P_thread_control_block{
+
   PCB* parent;            /***< pcb adress. */
   int exitval;            /***< The exit value */
   rlnode ptcb_self_node;  /***< node to use when queueing in the PTCB list */
+  
 
   TCB* main_thread;       /**< The thread */
   Task main_task;         /**< The thread's function */

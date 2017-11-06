@@ -32,7 +32,8 @@ Pid_t get_pid(PCB* pcb)
 /***Initialize a PTCB*/
 PTCB* initialize_PTCB(PCB* pcb)
 {
-  PTCB* p;
+  /*Allocating space for the new PTCB*/
+  PTCB* p = malloc(sizeof(PTCB)); 
   p->parent = pcb;
 
   p->argl = 0;
@@ -44,6 +45,7 @@ PTCB* initialize_PTCB(PCB* pcb)
   p->isExited = 0;
   return p;
 }
+
 
 /* Initialize a PCB */
 static inline void initialize_PCB(PCB* pcb)
@@ -61,10 +63,10 @@ static inline void initialize_PCB(PCB* pcb)
   rlnode_init(& pcb->exited_list, NULL);
   rlnode_init(& pcb->ptcb_list, NULL);
 
-  PTCB* p = initialize_PTCB(pcb);
-  pcb->ptcb_node = p;
+  //PTCB* p = initialize_PTCB(pcb);
+  //pcb->ptcb_node = p;
 
-  rlnode_init(& pcb->ptcb_node,p);
+  //rlnode_init(& pcb->ptcb_node,p);
   rlnode_init(& pcb->children_node, pcb);
   rlnode_init(& pcb->exited_node, pcb);
 
@@ -141,9 +143,9 @@ void start_main_thread()
 {
   int exitval;
 
-  Task call =  CURPROC->ptcb_node->main_task;
-  int argl = CURPROC->ptcb_node->argl;
-  void* args = CURPROC->ptcb_node->args;
+  Task call =  CURPROC->ptcb_list.ptcb->main_task;
+  int argl = CURPROC->ptcb_list.ptcb->argl;
+  void* args = CURPROC->ptcb_list.ptcb->args;
 
   exitval = call(argl,args);
   Exit(exitval);
@@ -185,30 +187,36 @@ Pid_t sys_Exec(Task call, int argl, void* args)
     }
   }
 
+/*Initializing the new PTCB*/
+  PTCB* p = initialize_PTCB(newproc);
+  
 
   /* Set the main thread's function *///////////////////////////////////////////////////////////////////////////////
   //newproc->main_task = call;
-  newproc->ptcb_node->main_task = call;
+  p->main_task = call;
   /* Copy the arguments to new storage, owned by the new process *//////////////////////////////////////////////////////////////////////
   //newproc->argl = argl;
-  newproc->ptcb_node->argl = argl;
+  p->argl = argl;
   
   if(args!=NULL) {
-    newproc->ptcb_node->args = malloc(argl);///
-    memcpy(newproc->ptcb_node->args, args, argl);
+    p->args = malloc(argl);///
+    memcpy(p->args, args, argl);
   }
   else
-    newproc->ptcb_node->args=NULL; ///
+    p->args=NULL; ///
 
-
+  newproc->ptcb_list.ptcb = p;
+  p->ptcb_self_node = newproc->ptcb_list;
+  newproc->counter ++; //Current Threads-PCTBs
   /* 
     Create and wake up the thread for the main function. This must be the last thing
     we do, because once we wakeup the new thread it may run! so we need to have finished
     the initialization of the PCB.
    */
+
   if(call != NULL) {
-    newproc->ptcb_node->main_thread = spawn_thread(newproc, start_main_thread);
-    wakeup(newproc->ptcb_node->main_thread);
+    p->main_thread = spawn_thread(newproc, start_main_thread);
+    wakeup(p->main_thread);
   }
 
 //printf("Creting a thread\n");////////////////////////////////////////////////////////////////////
@@ -321,9 +329,9 @@ void sys_Exit(int exitval)
   PCB *curproc = CURPROC;  /* cache for efficiency */
 
   /* Do all the other cleanup we want here, close files etc. */
-  if(curproc->args) {
-    free(curproc->args);
-    curproc->args = NULL;
+  if(curproc->ptcb_list.ptcb->args) {
+    free(curproc->ptcb_list.ptcb->args);
+    curproc->ptcb_list.ptcb->args = NULL;
   }
 
   /* Clean up FIDT */
@@ -357,7 +365,7 @@ void sys_Exit(int exitval)
   }
 
   /* Disconnect my main_thread */
-  curproc->main_thread = NULL;
+  curproc->ptcb_list.ptcb->main_thread = NULL;
 
   /* Now, mark the process as exited. */
   curproc->pstate = ZOMBIE;
