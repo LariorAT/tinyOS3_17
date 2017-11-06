@@ -191,10 +191,10 @@ Pid_t sys_Exec(Task call, int argl, void* args)
   PTCB* p = initialize_PTCB(newproc);
   
 
-  /* Set the main thread's function *///////////////////////////////////////////////////////////////////////////////
+  /* Set the main thread's function */
   //newproc->main_task = call;
   p->main_task = call;
-  /* Copy the arguments to new storage, owned by the new process *//////////////////////////////////////////////////////////////////////
+  /* Copy the arguments to new storage, owned by the new process */
   //newproc->argl = argl;
   p->argl = argl;
   
@@ -329,7 +329,7 @@ void sys_Exit(int exitval)
   PCB *curproc = CURPROC;  /* cache for efficiency */
 
   /* Do all the other cleanup we want here, close files etc. */
-  if(curproc->ptcb_list.ptcb->args) {
+  if(curproc->ptcb_list.ptcb->args) {  ///////////////////////////////////////////////////////////////////////////////////////////////////////TBR
     free(curproc->ptcb_list.ptcb->args);
     curproc->ptcb_list.ptcb->args = NULL;
   }
@@ -365,7 +365,7 @@ void sys_Exit(int exitval)
   }
 
   /* Disconnect my main_thread */
-  curproc->ptcb_list.ptcb->main_thread = NULL;
+  curproc->ptcb_list.ptcb->main_thread = NULL;///////////////////////////////////////////////////////////////////////////////////////////////////////TBR
 
   /* Now, mark the process as exited. */
   curproc->pstate = ZOMBIE;

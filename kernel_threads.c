@@ -7,10 +7,24 @@
   @brief Create a new thread in the current process.
   */
 Tid_t sys_CreateThread(Task task, int argl, void* args)
-{
+{ 
+  PCB * curproc = CURPROC;
+  PTCB* p = initialize_PTCB(curproc);
   
+  p->main_task = task;
+  p->args = args;
+  p->argl = argl;
+  /*creating the new PTCB node*/
+  rlnode_init(& p->ptcb_self_node,p);     //check for NULL exception
+  rlist_push_back(& curproc->ptcb_list,& p->ptcb_self_node);
+  curproc->counter++; //may need mutex_lock TBC
+
+  p->main_thread = spawn_thread(curproc, start_main_thread);
+  wakeup(p->main_thread);
+
   printf("test1\n");
-	return NOTHREAD;
+	/*return the TCB Adress as Thread ID*/
+  return (Tid_t)p->main_thread;
 }
 
 /**
