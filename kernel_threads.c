@@ -22,7 +22,7 @@ Tid_t sys_CreateThread(Task task, int argl, void* args)
   p->main_thread = spawn_thread(curproc, start_main_thread);
   wakeup(p->main_thread);
 
-  printf("test1\n");
+  
 	/*return the TCB Adress as Thread ID*/
   return (Tid_t)p->main_thread;
 }
@@ -41,8 +41,7 @@ Tid_t sys_ThreadSelf()
   */
 int sys_ThreadJoin(Tid_t tid, int* exitval)
 {
-  printf("test2\n");
-	return -1;
+  return -1;
 }
 
 /**
@@ -50,8 +49,13 @@ int sys_ThreadJoin(Tid_t tid, int* exitval)
   */
 int sys_ThreadDetach(Tid_t tid)
 {
-  printf("test3\n");
-	return -1;
+  TCB* t = (TCB*)tid;
+  if(t == NULL || t->state == EXITED || t->owner_ptcb->isExited == 1){
+    return -1;
+  }
+  t->owner_ptcb->isDetached = 1;
+  return 0;
+	
 }
 
 /**
