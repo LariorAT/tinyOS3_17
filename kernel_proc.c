@@ -43,7 +43,6 @@ PTCB* initialize_PTCB(PCB* pcb)
   p->waiting = 0;
   p->isDetached = 0;
   p->isExited = 0;
-  p->wait_var = COND_INIT;
 
   return p;
 }
