@@ -24,6 +24,7 @@
 #include "util.h"
 #include "bios.h"
 #include "tinyos.h"
+#include "kernel_proc.h"
 
 /*****************************
  *
@@ -88,7 +89,7 @@ enum SCHED_CAUSE {
 typedef struct thread_control_block
 {
   PCB* owner_pcb;       /**< This is null for a free TCB */    ///////////////////////////////////////TO ADD ptcb OWNER
-
+  PTCB* owner_ptcb;
   cpu_context_t context;     /**< The thread context */
 
 #ifndef NVALGRIND
@@ -107,6 +108,7 @@ typedef struct thread_control_block
   struct thread_control_block * prev;  /**< previous context */
   struct thread_control_block * next;  /**< next context */
   
+
 } TCB;
 
 

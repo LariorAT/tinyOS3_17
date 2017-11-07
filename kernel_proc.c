@@ -219,7 +219,7 @@ Pid_t sys_Exec(Task call, int argl, void* args)
     wakeup(p->main_thread);
   }
 
-//printf("Creting a thread\n");////////////////////////////////////////////////////////////////////
+//fprintf(stdout,"Creting a thread\n");////////////////////////////////////////////////////////////////////
 finish:
   return get_pid(newproc);
 }
