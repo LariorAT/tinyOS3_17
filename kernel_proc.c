@@ -171,7 +171,6 @@ Pid_t sys_Exec(Task call, int argl, void* args)
   }
   else
     newproc->args=NULL;
-
   /* 
     Create and wake up the thread for the main function. This must be the last thing
     we do, because once we wakeup the new thread it may run! so we need to have finished

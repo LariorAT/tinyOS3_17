@@ -107,7 +107,7 @@ typedef struct thread_control_block
   struct thread_control_block * prev;  /**< previous context */
   struct thread_control_block * next;  /**< next context */
 
-  int priority;  /*** The number of the priority list of the thread */
+  unsigned short priority;  /*** The number of the priority list of the thread */
   enum SCHED_CAUSE previousCause;
   
 } TCB;
@@ -175,7 +175,7 @@ extern int THREADS_FREE;
 
 
 /***Number of priority queues in scheduler*/
-#define NumOfSchLists 3
+#define NumOfSchLists 4
 
 
 
