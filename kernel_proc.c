@@ -216,10 +216,13 @@ Pid_t sys_Exec(Task call, int argl, void* args)
 
   if(call != NULL) {
     p->main_thread = spawn_thread(newproc, start_main_thread);
+    p->main_thread->owner_ptcb = p;
+    //fprintf(stderr, "%x\n",p->main_thread->owner_ptcb ); // Testing..
     wakeup(p->main_thread);
+
   }
 
-//fprintf(stdout,"Creting a thread\n");////////////////////////////////////////////////////////////////////
+
 finish:
   return get_pid(newproc);
 }

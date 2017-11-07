@@ -128,13 +128,7 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
 
   /* Set the owner */ /////////////////////////////////////////////////////////////////////
   tcb->owner_pcb = pcb;
-  tcb->owner_ptcb = NULL;
-  assert(tcb->owner_ptcb == NULL);
-  //if(CURCORE.id == 0){
-     fprintf(stderr,"t.%d\n",tcb->owner_ptcb);
-  //}
- 
-
+  
   /* Initialize the other attributes */
   tcb->type = NORMAL_THREAD;
   tcb->state = INIT;
