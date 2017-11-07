@@ -28,7 +28,7 @@ Tid_t sys_CreateThread(Task task, int argl, void* args)
   p->main_thread->owner_ptcb = p;
   wakeup(p->main_thread);
 
-  printf("test1\n");
+  
 	/*return the TCB Adress as Thread ID*/
   return (Tid_t)p->main_thread;
 }
@@ -47,6 +47,7 @@ Tid_t sys_ThreadSelf()
   */
 int sys_ThreadJoin(Tid_t tid, int* exitval)
 {
+
   PCB * curproc = CURPROC; /***Local copy for speed*/
 
   rlnode* tempPTCB = &curproc->ptcb_list;
@@ -89,6 +90,7 @@ int sys_ThreadJoin(Tid_t tid, int* exitval)
   Cond_Wait(&attached,&tempPTCB->ptcb->wait_var);
   *exitval = tempPTCB->ptcb->exitval;
 	return 0;
+
 }
 
 /**
@@ -98,11 +100,13 @@ int sys_ThreadDetach(Tid_t tid)
 {
   TCB* t = (TCB*)tid;
   if(t == NULL || t->state == EXITED || t->owner_ptcb->isExited == 1){
+
    return -1;
   }
   t->owner_ptcb->isDetached = 1;
   return 0;
  
+
 }
 
 /**
@@ -110,6 +114,6 @@ int sys_ThreadDetach(Tid_t tid)
   */
 void sys_ThreadExit(int exitval)
 {
-  printf("test4\n");
+  
 }
 
