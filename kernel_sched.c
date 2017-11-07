@@ -136,7 +136,7 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
   tcb->thread_func = func;
   tcb->wakeup_time = NO_TIMEOUT;
   rlnode_init(& tcb->sched_node, tcb);  /* Intrusive list node */
-
+  
 
   /* Compute the stack segment address and size */
   void* sp = ((void*)tcb) + THREAD_TCB_SIZE;
