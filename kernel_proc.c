@@ -30,20 +30,18 @@ Pid_t get_pid(PCB* pcb)
 }
 
 /***Initialize a PTCB*/
-PTCB* initialize_PTCB(PCB* pcb)
+PTCB* initialize_PTCB()
 {
   /*Allocating space for the new PTCB*/
   PTCB* p = malloc(sizeof(PTCB)); 
-  p->parent = pcb;
-
   p->argl = 0;
   p->args = NULL;
  
-  p->wait_var = COND_INIT;
-  p->waiting = 0;
+  p->refCounter = 1;
   p->isDetached = 0;
   p->isExited = 0;
   p->wait_var = COND_INIT;
+
 
   return p;
 }
@@ -65,8 +63,6 @@ static inline void initialize_PCB(PCB* pcb)
   rlnode_init(& pcb->exited_list, NULL);
   rlnode_init(& pcb->ptcb_list, NULL);
 
-  //PTCB* p = initialize_PTCB(pcb);
-  //pcb->ptcb_node = p;
 
   //rlnode_init(& pcb->ptcb_node,p);
   rlnode_init(& pcb->children_node, pcb);
@@ -190,7 +186,7 @@ Pid_t sys_Exec(Task call, int argl, void* args)
   }
 
 /*Initializing the new PTCB*/
-  PTCB* p = initialize_PTCB(newproc);
+  PTCB* p = initialize_PTCB();
   
 
   /* Set the main thread's function */
@@ -368,8 +364,12 @@ void sys_Exit(int exitval)
     rlist_push_front(& curproc->parent->exited_list, &curproc->exited_node);
     kernel_broadcast(& curproc->parent->child_exit);
   }
-
+  /***Exit the remaing threads*/
+  /*For all threads that  call exit_thread??????*/
+  
   /* Disconnect my main_thread */
+  //ThreadExit(NULL);
+  //free(curproc->ptcb_list)
   curproc->ptcb_list.ptcb->main_thread = NULL;///////////////////////////////////////////////////////////////////////////////////////////////////////TBR
 
   /* Now, mark the process as exited. */

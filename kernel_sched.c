@@ -89,6 +89,7 @@ void* allocate_thread(size_t size)
 void free_thread(void* ptr, size_t size)
 {
   free(ptr);
+
 }
 
 void* allocate_thread(size_t size)
@@ -126,7 +127,7 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
   /* The allocated thread size must be a multiple of page size */
   TCB* tcb = (TCB*) allocate_thread(THREAD_SIZE);
 
-  /* Set the owner */ /////////////////////////////////////////////////////////////////////
+  /* Set the process owner */ 
   tcb->owner_pcb = pcb;
   
   /* Initialize the other attributes */
@@ -168,7 +169,7 @@ void release_TCB(TCB* tcb)
 #endif
 
   free_thread(tcb, THREAD_SIZE);
-
+  
   Mutex_Lock(&active_threads_spinlock);
   active_threads--;
   Mutex_Unlock(&active_threads_spinlock);
@@ -358,6 +359,9 @@ void sleep_releasing(Thread_state state, Mutex* mx, enum SCHED_CAUSE cause, Time
 
   /* mark the thread as stopped or exited */
   tcb->state = state;
+  if(state==EXITED)
+  if(tcb->owner_ptcb->isExited== 0)
+  ThreadExit(0); /*** Inform the ptcb in normal exit*/
 
   /* register the timeout (if any) for the sleeping thread */
   if(state!=EXITED) 

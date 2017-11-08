@@ -69,7 +69,6 @@ typedef struct process_control_block {
  */
 typedef struct P_thread_control_block{
 
-  PCB* parent;            /***< pcb adress. */
   int exitval;            /***< The exit value */
   rlnode ptcb_self_node;  /***< node to use when queueing in the PTCB list */
   
@@ -80,8 +79,10 @@ typedef struct P_thread_control_block{
   void* args;             /**< The thread's argument string */
 
   CondVar wait_var ;     /**< Condition variable for @c Wait */
+   
 
-  int waiting;             /***< Thenumber of the TCBs waitng*/
+
+  int refCounter;             /***< Thenumber of the threads waitng*/
   int isDetached;          /***< 1 if Detached, 0 else*/
   int isExited;            /***< 1 if Exited, 0 else*/
 
@@ -97,7 +98,7 @@ typedef struct P_thread_control_block{
 */
 void initialize_processes();
 
-PTCB* initialize_PTCB(PCB* pcb);
+PTCB* initialize_PTCB();
 void start_main_thread();
 
 /**
