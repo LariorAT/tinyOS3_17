@@ -359,9 +359,7 @@ void sleep_releasing(Thread_state state, Mutex* mx, enum SCHED_CAUSE cause, Time
 
   /* mark the thread as stopped or exited */
   tcb->state = state;
-  if(state==EXITED)
-  if(tcb->owner_ptcb->isExited== 0)
-  ThreadExit(0); /*** Inform the ptcb in normal exit*/
+ 
 
   /* register the timeout (if any) for the sleeping thread */
   if(state!=EXITED) 
@@ -369,10 +367,12 @@ void sleep_releasing(Thread_state state, Mutex* mx, enum SCHED_CAUSE cause, Time
 
   /* Release mx */
   if(mx!=NULL) Mutex_Unlock(mx);
-
+ 
   /* Release the schduler spinlock before calling yield() !!! */
   Mutex_Unlock(& sched_spinlock);
-  
+   if(state==EXITED)
+  if(tcb->owner_ptcb->isExited== 0)
+  ThreadExit(0); /*** Inform the ptcb in normal exit*/
   /* call this to schedule someone else */
   yield(cause);
 
