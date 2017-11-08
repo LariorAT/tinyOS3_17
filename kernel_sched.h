@@ -99,7 +99,7 @@ typedef struct thread_control_block
   Thread_type type;       /**< The type of thread */
   Thread_state state;    /**< The state of the thread */
   Thread_phase phase;    /**< The phase of the thread */
-
+ 
   void (*thread_func)();   /**< The function executed by this thread */
 
   TimerDuration wakeup_time; /**< The time this thread will be woken up by the scheduler */
@@ -107,6 +107,9 @@ typedef struct thread_control_block
 
   struct thread_control_block * prev;  /**< previous context */
   struct thread_control_block * next;  /**< next context */
+
+  unsigned short priority;  /*** The number of the priority list of the thread */
+  enum SCHED_CAUSE previousCause;
   
 
 } TCB;
@@ -165,6 +168,19 @@ extern CCB cctx[MAX_CORES];
   @brief A timeout constant, denoting no timeout for sleep.
 */
 #define NO_TIMEOUT ((TimerDuration)-1)
+
+
+/***
+  A counter of threads exiting the scheduler lists
+*/
+extern int THREADS_FREE;
+
+
+/***Number of priority queues in scheduler*/
+#define NumOfSchLists 4
+
+
+
 
 
 /**
