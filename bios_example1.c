@@ -1,6 +1,14 @@
 #include <bios.h>
 #include <stdio.h>
-/*sadasd8*/
+
+#include <util.h>
+#include <kernel_sched.h>
+
+#include <kernel_proc.h>
+#include <assert.h>
+
+
+
 void bootfunc() {
   fprintf(stderr, "Hello from core %u\n", cpu_core_id);
 }

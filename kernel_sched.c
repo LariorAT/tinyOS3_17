@@ -1,3 +1,4 @@
+//testting branches
 
 #include <assert.h>
 #include <sys/mman.h>
@@ -6,6 +7,7 @@
 #include "kernel_cc.h"
 #include "kernel_sched.h"
 #include "kernel_proc.h"
+#include "assert.h"
 
 #ifndef NVALGRIND
 #include <valgrind/valgrind.h>
@@ -89,6 +91,7 @@ void* allocate_thread(size_t size)
 void free_thread(void* ptr, size_t size)
 {
   free(ptr);
+
 }
 
 void* allocate_thread(size_t size)
@@ -126,9 +129,9 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
   /* The allocated thread size must be a multiple of page size */
   TCB* tcb = (TCB*) allocate_thread(THREAD_SIZE);
 
-  /* Set the owner */
+  /* Set the process owner */ 
   tcb->owner_pcb = pcb;
-
+  
   /* Initialize the other attributes */
   tcb->previousCause = SCHED_QUANTUM;
   tcb->priority = 2; /*##priority first set*/
@@ -138,7 +141,7 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
   tcb->thread_func = func;
   tcb->wakeup_time = NO_TIMEOUT;
   rlnode_init(& tcb->sched_node, tcb);  /* Intrusive list node */
-
+  
 
   /* Compute the stack segment address and size */
   void* sp = ((void*)tcb) + THREAD_TCB_SIZE;
@@ -170,7 +173,7 @@ void release_TCB(TCB* tcb)
 #endif
 
   free_thread(tcb, THREAD_SIZE);
-
+  
   Mutex_Lock(&active_threads_spinlock);
   active_threads--;
   Mutex_Unlock(&active_threads_spinlock);
@@ -395,6 +398,7 @@ void sleep_releasing(Thread_state state, Mutex* mx, enum SCHED_CAUSE cause, Time
 
   /* mark the thread as stopped or exited */
   tcb->state = state;
+ 
 
   /* register the timeout (if any) for the sleeping thread */
   if(state!=EXITED) 
@@ -402,10 +406,12 @@ void sleep_releasing(Thread_state state, Mutex* mx, enum SCHED_CAUSE cause, Time
 
   /* Release mx */
   if(mx!=NULL) Mutex_Unlock(mx);
-
+ 
   /* Release the schduler spinlock before calling yield() !!! */
   Mutex_Unlock(& sched_spinlock);
-  
+   if(state==EXITED)
+  if(tcb->owner_ptcb->isExited== 0)
+  ThreadExit(0); /*** Inform the ptcb in normal exit*/
   /* call this to schedule someone else */
   yield(cause);
 
