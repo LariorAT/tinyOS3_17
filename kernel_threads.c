@@ -104,7 +104,7 @@ int sys_ThreadJoin(Tid_t tid, int* exitval)
       if(tempPTCB->ptcb->refCounter==0) 
         {
           rlist_remove(tempPTCB);
-          free(tempPTCB);
+          free(tempPTCB->ptcb);
           curproc->counter--;
         }
     }
@@ -156,6 +156,7 @@ void sys_ThreadExit(int exitval)
     
   current->owner_ptcb->isExited = 1;
   current->owner_ptcb->refCounter--;
+  current->owner_ptcb->exitval = exitval;
   kernel_broadcast(&current->owner_ptcb->wait_var);
   
 }

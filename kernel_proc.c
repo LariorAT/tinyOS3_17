@@ -140,13 +140,22 @@ void release_PCB(PCB* pcb)
 void start_main_thread()
 {
   int exitval;
-
-  Task call =  CURPROC->ptcb_list.ptcb->main_task;
-  int argl = CURPROC->ptcb_list.ptcb->argl;
-  void* args = CURPROC->ptcb_list.ptcb->args;
+  TCB* current = CURTHREAD;
+  Task call =  current->owner_ptcb->main_task;
+  int argl = current->owner_ptcb->argl;
+  void* args = current->owner_ptcb->args;
 
   exitval = call(argl,args);
-  Exit(exitval);
+
+  if(CURTHREAD==CURPROC->ptcb_list.ptcb->main_thread)
+  {  
+    Exit(exitval);
+  }
+  else
+  {
+    kernel_sleep(EXITED, SCHED_USER);
+  }
+
 }
 
 
@@ -215,7 +224,6 @@ Pid_t sys_Exec(Task call, int argl, void* args)
   if(call != NULL) {
     p->main_thread = spawn_thread(newproc, start_main_thread);
     p->main_thread->owner_ptcb = p;
-    //fprintf(stderr, "%x\n",p->main_thread->owner_ptcb ); // Testing..
     wakeup(p->main_thread);
 
   }
@@ -326,14 +334,11 @@ void sys_Exit(int exitval)
   if(sys_GetPid()==1) {
     while(sys_WaitChild(NOPROC,NULL)!=NOPROC);
   }
-
+  TCB* current = CURTHREAD;
   PCB *curproc = CURPROC;  /* cache for efficiency */
 
   /* Do all the other cleanup we want here, close files etc. */
-  if(curproc->ptcb_list.ptcb->args) {  ///////////////////////////////////////////////////////////////////////////////////////////////////////TBR
-    free(curproc->ptcb_list.ptcb->args);
-    curproc->ptcb_list.ptcb->args = NULL;
-  }
+  
 
   /* Clean up FIDT */
   for(int i=0;i<MAX_FILEID;i++) {
@@ -368,10 +373,8 @@ void sys_Exit(int exitval)
   /*For all threads that  call exit_thread??????*/
   
   /* Disconnect my main_thread */
-  //ThreadExit(NULL);
-  //free(curproc->ptcb_list)
-  curproc->ptcb_list.ptcb->main_thread = NULL;///////////////////////////////////////////////////////////////////////////////////////////////////////TBR
-
+  //free(curproc->ptcb_list.ptcb);
+ // curproc->ptcb_list.ptcb->main_thread = NULL;///TBR
   /* Now, mark the process as exited. */
   curproc->pstate = ZOMBIE;
   curproc->exitval = exitval;
