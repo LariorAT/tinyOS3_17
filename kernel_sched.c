@@ -112,7 +112,6 @@ static void thread_start()
 {
   gain(1);
   CURTHREAD->thread_func();
-
   /* We are not supposed to get here! */
   assert(0);
 }
@@ -129,7 +128,7 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
 
   /* Set the process owner */ 
   tcb->owner_pcb = pcb;
-  
+  tcb->owner_ptcb = pcb->ptcb_list.prev->ptcb;
   /* Initialize the other attributes */
   tcb->type = NORMAL_THREAD;
   tcb->state = INIT;
@@ -370,14 +369,13 @@ void sleep_releasing(Thread_state state, Mutex* mx, enum SCHED_CAUSE cause, Time
  
   /* Release the schduler spinlock before calling yield() !!! */
   Mutex_Unlock(& sched_spinlock);
-   if(state==EXITED)
-  if(tcb->owner_ptcb->isExited== 0)
-  ThreadExit(0); /*** Inform the ptcb in normal exit*/
+ 
   /* call this to schedule someone else */
   yield(cause);
 
   /* Restore preemption state */
   if(preempt) preempt_on;
+
 }
 
 
@@ -420,8 +418,9 @@ void yield(enum SCHED_CAUSE cause)
   if(next==NULL) {
     if(current_ready)
       next = current;
-    else
+    else{
       next = & CURCORE.idle_thread;
+    }
   }
 
   /* ok, link the current and next TCB, for the gain phase */
@@ -475,7 +474,20 @@ void gain(int preempt)
         if(prev->type != IDLE_THREAD) sched_queue_add(prev);
         break;
       case EXITED:
+        if(prev->owner_pcb->counter==1)
+        {
+          if(prev->owner_pcb->ptcb_list.ptcb->isExited==1)
+          {
+            rlist_remove(&prev->owner_pcb->ptcb_list);
+            free(prev->owner_pcb->ptcb_list.ptcb);
+            release_TCB(prev);
+
+          }
+
+        }
+        else
       	release_TCB(prev);
+
         break;
       case STOPPED:
         break;

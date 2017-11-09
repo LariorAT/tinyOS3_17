@@ -24,12 +24,9 @@ Tid_t sys_CreateThread(Task task, int argl, void* args)
   rlnode_init(& p->ptcb_self_node,p);     //check for NULL exception
   rlist_push_back(& curproc->ptcb_list,& p->ptcb_self_node);
   curproc->counter++; //may need mutex_lock TBC
-
   p->main_thread = spawn_thread(curproc, start_main_thread);
-  p->main_thread->owner_ptcb = p;
+  //p->main_thread->owner_ptcb = p;
   wakeup(p->main_thread);
-
-  printf("test1\n");
 	/*return the TCB Adress as Thread ID*/
   return (Tid_t)p->main_thread;
 }
@@ -52,11 +49,7 @@ int sys_ThreadJoin(Tid_t tid, int* exitval)
 
   rlnode* tempPTCB = &curproc->ptcb_list;
   TCB* t = (TCB*)tid;
-
-  /***if the thread we want to join is not exited*/
-  if(t->owner_ptcb->isExited==0) 
-  {
-    int i;
+  int i;
     /**Search for it in the ptcb list*/
    for (i = 0; i < curproc->counter;i++)
     {
@@ -86,19 +79,20 @@ int sys_ThreadJoin(Tid_t tid, int* exitval)
       return -1;
     }
 
-    /***If we reached here we can now join the thread*/
-
+    /***If we reached here we can now join the thread if it is not exited*/
+   if(tempPTCB->ptcb->isExited == 0)
+   {
     tempPTCB->ptcb->refCounter++; //Update the reference counter of the the thread we join in
 
     kernel_wait(&tempPTCB->ptcb->wait_var,SCHED_MUTEX); //Waiting
 
     
     tempPTCB->ptcb->refCounter--; //Update the reference counter
-    }
+   }
 
   if(exitval!=NULL)
     *exitval = tempPTCB->ptcb->exitval; //Save the exit value
-
+ 
   if(tempPTCB->ptcb->isExited == 1) /*If the thread is exited*/
     { /*If none is waiting we release the ptcb */
       if(tempPTCB->ptcb->refCounter==0) 
@@ -139,25 +133,25 @@ void sys_ThreadExit(int exitval)
   TCB* current = CURTHREAD; 
   PCB * curproc = CURPROC; 
 
-  /***Incase of Main thread in process we end all the other threads in process*/
+  /***Incase of Main thread in process we clean all the other pthreads in process*/
   if(current->owner_ptcb==current->owner_pcb->ptcb_list.ptcb ) 
   {
     rlnode* next = &curproc->ptcb_list;
-    if(curproc->counter>1)
-      next = next->next;
-    else
-      return;
-
     /*Join the next thread in ptcb list*/
-    sys_ThreadJoin((Tid_t) next->ptcb->main_thread, &exitval);
-    sys_ThreadExit(exitval);
+    while(curproc->counter>1)
+    {
+      next = &curproc->ptcb_list;
+      next = next->next;
+      sys_ThreadJoin((Tid_t) next->ptcb->main_thread, &exitval);
+    }
+    
   }
   /*for all threads*/
-    
+  
   current->owner_ptcb->isExited = 1;
   current->owner_ptcb->refCounter--;
   current->owner_ptcb->exitval = exitval;
   kernel_broadcast(&current->owner_ptcb->wait_var);
-  
+  kernel_sleep(EXITED, SCHED_USER); 
 }
 

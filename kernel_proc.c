@@ -153,7 +153,8 @@ void start_main_thread()
   }
   else
   {
-    kernel_sleep(EXITED, SCHED_USER);
+    ThreadExit(exitval); 
+
   }
 
 }
@@ -196,7 +197,7 @@ Pid_t sys_Exec(Task call, int argl, void* args)
 
 /*Initializing the new PTCB*/
   PTCB* p = initialize_PTCB();
-  
+  p->isDetached = 1;
 
   /* Set the main thread's function */
   //newproc->main_task = call;
@@ -223,7 +224,7 @@ Pid_t sys_Exec(Task call, int argl, void* args)
 
   if(call != NULL) {
     p->main_thread = spawn_thread(newproc, start_main_thread);
-    p->main_thread->owner_ptcb = p;
+    //p->main_thread->owner_ptcb = p;
     wakeup(p->main_thread);
 
   }
@@ -370,17 +371,17 @@ void sys_Exit(int exitval)
     kernel_broadcast(& curproc->parent->child_exit);
   }
   /***Exit the remaing threads*/
-  /*For all threads that  call exit_thread??????*/
   
   /* Disconnect my main_thread */
   //free(curproc->ptcb_list.ptcb);
- // curproc->ptcb_list.ptcb->main_thread = NULL;///TBR
+  //curproc->ptcb_list.ptcb->main_thread = NULL;///TBR
   /* Now, mark the process as exited. */
   curproc->pstate = ZOMBIE;
   curproc->exitval = exitval;
 
   /* Bye-bye cruel world */
-  kernel_sleep(EXITED, SCHED_USER);
+  sys_ThreadExit(exitval);
+  
 }
 
 
