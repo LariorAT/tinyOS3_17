@@ -105,9 +105,15 @@ typedef struct thread_control_block
   TimerDuration wakeup_time; /**< The time this thread will be woken up by the scheduler */
   rlnode sched_node;      /**< node to use when queueing in the scheduler lists */
 
+  unsigned short priority;  /*** The number of the priority list of the thread */
+  enum SCHED_CAUSE previousCause;
+  
+
+
   struct thread_control_block * prev;  /**< previous context */
   struct thread_control_block * next;  /**< next context */
   
+
 
 } TCB;
 
@@ -165,6 +171,11 @@ extern CCB cctx[MAX_CORES];
   @brief A timeout constant, denoting no timeout for sleep.
 */
 #define NO_TIMEOUT ((TimerDuration)-1)
+
+/***
+   @brief Number of priority queues in scheduler
+*/
+#define NumOfSchLists 4
 
 
 /**

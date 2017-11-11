@@ -1,4 +1,3 @@
-//testting branches
 
 #include <assert.h>
 #include <sys/mman.h>
@@ -13,7 +12,7 @@
 #include <valgrind/valgrind.h>
 #endif
 
-
+ /***Behold*/ 
 /*
    The thread layout.
   --------------------
@@ -126,10 +125,12 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
   /* The allocated thread size must be a multiple of page size */
   TCB* tcb = (TCB*) allocate_thread(THREAD_SIZE);
 
-  /* Set the process owner */ 
+  /* Set the thread owners */ 
   tcb->owner_pcb = pcb;
   tcb->owner_ptcb = pcb->ptcb_list.prev->ptcb;
   /* Initialize the other attributes */
+  tcb->previousCause = SCHED_QUANTUM;
+  tcb->priority = 2; /*##priority first set*/
   tcb->type = NORMAL_THREAD;
   tcb->state = INIT;
   tcb->phase = CTX_CLEAN;
@@ -201,8 +202,8 @@ CCB cctx[MAX_CORES];
   Both of these structures are protected by @c sched_spinlock.
 */
 
-
-rlnode SCHED;                         /* The scheduler queue */
+/*** The scheduler array of priority queues */
+rlnode SCHED[NumOfSchLists];     
 rlnode TIMEOUT_LIST;				  /* The list of threads with a timeout */
 Mutex sched_spinlock = MUTEX_INIT;    /* spinlock for scheduler queue */
 
@@ -246,14 +247,14 @@ static void sched_register_timeout(TCB* tcb, TimerDuration timeout)
 
 
 /*
-  Add TCB to the end of the scheduler list.
+  Add TCB to the end of the scheduler list of its priority.
 
   *** MUST BE CALLED WITH sched_spinlock HELD ***
 */
 static void sched_queue_add(TCB* tcb)
 {
-  /* Insert at the end of the scheduling list */
-  rlist_push_back(& SCHED, & tcb->sched_node);
+  /*** Insert at the end of the its priority scheduling list  */
+  rlist_push_back(& SCHED[tcb->priority], & tcb->sched_node);
 
   /* Restart possibly halted cores */
   cpu_core_restart_one();
@@ -287,29 +288,64 @@ static void sched_make_ready(TCB* tcb)
 
 
 /*
-  Remove the head of the scheduler list, if any, and
-  return it. Return NULL if the list is empty.
+  Remove the head of the scheduler lists by priority, if any, and
+  return it. Return NULL if the lists are empty.
 
   *** MUST BE CALLED WITH sched_spinlock HELD ***
 */
-static TCB* sched_queue_select()
+static TCB* sched_queue_select(enum SCHED_CAUSE cause)
 {
+    
+
+  TCB* current = CURTHREAD;  /* Make a local copy of current process, for speed */
+ /***Set priority of current thread according to cause*/
+  switch(cause)
+  {
+    case SCHED_IO:
+      if(current->priority>0)
+      --current->priority;
+    break;
+    case SCHED_QUANTUM:
+      if(current->priority<3)
+      ++current->priority;
+    case SCHED_MUTEX:
+      if(current->previousCause)
+      {
+      if(current->priority<3)
+        ++current->priority; 
+      } 
+    break;
+    default:
+    break;
+  }
+  current->previousCause = cause;
+
+  
+
+
 
   /* Empty the timeout list up to the current time and wake up each thread */
   TimerDuration curtime = bios_clock();
   while(! is_rlist_empty(&TIMEOUT_LIST)) {
-  		TCB* tcb = TIMEOUT_LIST.next->tcb;
-  		if(tcb->wakeup_time > curtime)
-  			break;
-  		sched_make_ready(tcb);
+      TCB* tcb = TIMEOUT_LIST.next->tcb;
+      if(tcb->wakeup_time > curtime)
+        break;
+      sched_make_ready(tcb);
   }
 
-  /* Get the head of the SCHED list */
-  rlnode * sel = rlist_pop_front(& SCHED);
+  /*** Get the head of the first not empty SCHED list by priority */
+  int i=0;
+  rlnode * sel;
+  while(i<NumOfSchLists)
+  {
+    sel = rlist_pop_front(& SCHED[i]);
+    if(!(sel->tcb==NULL))
+      break;
+    i++;
+  }
 
-  return sel->tcb;  /* When the list is empty, this is NULL */
+  return sel->tcb;  /* When all lists are empty it is NULL*/
 } 
-
 
 /*
   Make the process ready. 
@@ -412,7 +448,7 @@ void yield(enum SCHED_CAUSE cause)
   }
 
   /* Get next */
-  TCB* next = sched_queue_select();
+  TCB* next = sched_queue_select(cause);
 
   /* Maybe there was nothing ready in the scheduler queue ? */
   if(next==NULL) {
@@ -474,7 +510,7 @@ void gain(int preempt)
         if(prev->type != IDLE_THREAD) sched_queue_add(prev);
         break;
       case EXITED:
-        if(prev->owner_pcb->counter==1)
+        if(prev->owner_pcb->counter==1) /***Take care of exited process main threads*/
         {
           if(prev->owner_pcb->ptcb_list.ptcb->isExited==1)
           {
@@ -501,8 +537,28 @@ void gain(int preempt)
   /* Reset preemption as needed */
   if(preempt) preempt_on;
 
-  /* Set a 1-quantum alarm */
-  bios_set_timer(QUANTUM);
+  /* Set a t-quantum alarm acording to priority*/
+  long t;
+  switch(CURTHREAD->priority)
+  {
+    case 0:
+      t = (QUANTUM*0.01);
+      break;
+    case 1:
+      t = (QUANTUM*0.5);
+      break;
+    case 2:
+      t = (QUANTUM);
+      break;
+    case 3:
+      t = (QUANTUM*2);
+      break;  
+    default:
+    break;
+
+  }
+
+  bios_set_timer(t); /***QUANTUM is set in regard of priority of thread*/
 }
 
 
@@ -524,12 +580,17 @@ static void idle_thread()
 
 
 /*
-  Initialize the scheduler queue
+  Initialize the scheduler queues
  */
 void initialize_scheduler()
 {
-  rlnode_init(&SCHED, NULL);
+  if(cpu_core_id ==0){
+  for(int i=0;i<NumOfSchLists;i++)
+  {
+    rlnode_init(&SCHED[i], NULL); /***Initialize each priority queues*/
+  }
   rlnode_init(&TIMEOUT_LIST, NULL);
+  }
 }
 
 
@@ -537,7 +598,6 @@ void initialize_scheduler()
 void run_scheduler()
 {
   CCB * curcore = & CURCORE;
-
   /* Initialize current CCB */
   curcore->id = cpu_core_id;
 
@@ -563,5 +623,6 @@ void run_scheduler()
   cpu_interrupt_handler(ALARM, NULL);
   cpu_interrupt_handler(ICI, NULL);
 }
+
 
 
