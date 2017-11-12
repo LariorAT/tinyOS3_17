@@ -107,6 +107,7 @@ typedef struct thread_control_block
 
   unsigned short priority;  /*** The number of the priority list of the thread */
   enum SCHED_CAUSE previousCause;
+  unsigned short pre_priority; /** Used for priority restoration after priority inversion*/
   
 
 

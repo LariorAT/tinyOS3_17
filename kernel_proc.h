@@ -41,17 +41,12 @@ typedef struct process_control_block {
   PCB* parent;            /**< Parent's pcb. */
   int exitval;            /**< The exit value */
 
-  //TCB* main_thread;       /**< The main thread */
-  //Task main_task;         /**< The main thread's function */
-  //int argl;               /**< The main thread's argument length */
-  //void* args;             /**< The main thread's argument string */
 
   int counter;            /***<The number of current ptcb*/ 
   rlnode children_list;   /**< List of children */
   rlnode exited_list;     /**< List of exited children */
   rlnode ptcb_list;       /***< List of PTCBs */    
 
-  //rlnode ptcb_node;       /***< Intrusive node for @c ptcb_list */
   rlnode children_node;   /**< Intrusive node for @c children_list */
   rlnode exited_node;     /**< Intrusive node for @c exited_list */
 

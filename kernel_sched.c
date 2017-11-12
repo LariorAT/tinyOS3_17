@@ -129,7 +129,8 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
   tcb->owner_pcb = pcb;
   tcb->owner_ptcb = pcb->ptcb_list.prev->ptcb;
   /* Initialize the other attributes */
-  tcb->previousCause = SCHED_QUANTUM;
+  tcb->pre_priority = NumOfSchLists-1;
+  tcb->previousCause = SCHED_USER;
   tcb->priority = 2; /*##priority first set*/
   tcb->type = NORMAL_THREAD;
   tcb->state = INIT;
@@ -299,6 +300,15 @@ static TCB* sched_queue_select(enum SCHED_CAUSE cause)
 
   TCB* current = CURTHREAD;  /* Make a local copy of current process, for speed */
  /***Set priority of current thread according to cause*/
+
+  /***Restore priority after priority inversion*/
+  if(current->previousCause==SCHED_MUTEX&&cause!=SCHED_MUTEX)
+  {
+
+    current->priority = current->pre_priority;
+  }
+
+  /***Set new priority*/
   switch(cause)
   {
     case SCHED_IO:
@@ -306,18 +316,25 @@ static TCB* sched_queue_select(enum SCHED_CAUSE cause)
       --current->priority;
     break;
     case SCHED_QUANTUM:
-      if(current->priority<3)
+      if(current->priority<NumOfSchLists-1)
       ++current->priority;
-    case SCHED_MUTEX:
-      if(current->previousCause)
+    case SCHED_MUTEX:     
+      if(current->previousCause==SCHED_MUTEX) /***Resolve priority inversion*/
       {
-      if(current->priority<3)
-        ++current->priority; 
+        if(current->priority<NumOfSchLists-1)
+        {
+          
+          if(current->pre_priority>current->priority)
+          current->pre_priority = current->priority;
+
+          ++current->priority;
+        }
       } 
     break;
     default:
     break;
   }
+  
   current->previousCause = cause;
 
   
@@ -514,10 +531,10 @@ void gain(int preempt)
         {
           if(prev->owner_pcb->ptcb_list.ptcb->isExited==1)
           {
+            prev->owner_pcb->counter--;
             rlist_remove(&prev->owner_pcb->ptcb_list);
             free(prev->owner_pcb->ptcb_list.ptcb);
             release_TCB(prev);
-
           }
 
         }

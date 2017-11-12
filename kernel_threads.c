@@ -25,7 +25,6 @@ Tid_t sys_CreateThread(Task task, int argl, void* args)
   rlist_push_back(& curproc->ptcb_list,& p->ptcb_self_node);
   curproc->counter++; //may need mutex_lock TBC
   p->main_thread = spawn_thread(curproc, start_main_thread);
-  //p->main_thread->owner_ptcb = p;
   wakeup(p->main_thread);
 	/*return the TCB Adress as Thread ID*/
   return (Tid_t)p->main_thread;
@@ -48,7 +47,6 @@ int sys_ThreadJoin(Tid_t tid, int* exitval)
   PCB * curproc = CURPROC; /***Local copy for speed*/
 
   rlnode* tempPTCB = &curproc->ptcb_list;
-  TCB* t = (TCB*)tid;
   int i;
     /**Search for it in the ptcb list*/
    for (i = 0; i < curproc->counter;i++)
@@ -83,9 +81,8 @@ int sys_ThreadJoin(Tid_t tid, int* exitval)
    if(tempPTCB->ptcb->isExited == 0)
    {
     tempPTCB->ptcb->refCounter++; //Update the reference counter of the the thread we join in
-
+   
     kernel_wait(&tempPTCB->ptcb->wait_var,SCHED_MUTEX); //Waiting
-
     
     tempPTCB->ptcb->refCounter--; //Update the reference counter
    }
@@ -102,7 +99,6 @@ int sys_ThreadJoin(Tid_t tid, int* exitval)
           curproc->counter--;
         }
     }
-
 	return 0;
 }
 

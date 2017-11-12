@@ -52,8 +52,6 @@ static inline void initialize_PCB(PCB* pcb)
 {
 
   pcb->pstate = FREE;
-  //pcb->argl = 0;
-  //pcb->args = NULL;
   pcb->counter = 0;
 
   for(int i=0;i<MAX_FILEID;i++)
@@ -64,7 +62,6 @@ static inline void initialize_PCB(PCB* pcb)
   rlnode_init(& pcb->ptcb_list, NULL);
 
 
-  //rlnode_init(& pcb->ptcb_node,p);
   rlnode_init(& pcb->children_node, pcb);
   rlnode_init(& pcb->exited_node, pcb);
 
@@ -200,18 +197,17 @@ Pid_t sys_Exec(Task call, int argl, void* args)
   p->isDetached = 1;
 
   /* Set the main thread's function */
-  //newproc->main_task = call;
   p->main_task = call;
   /* Copy the arguments to new storage, owned by the new process */
   //newproc->argl = argl;
   p->argl = argl;
   
   if(args!=NULL) {
-    p->args = malloc(argl);///
+    p->args = malloc(argl);
     memcpy(p->args, args, argl);
   }
   else
-    p->args=NULL; ///
+    p->args=NULL; 
 
   newproc->ptcb_list.ptcb = p;
   p->ptcb_self_node = newproc->ptcb_list;
@@ -224,7 +220,6 @@ Pid_t sys_Exec(Task call, int argl, void* args)
 
   if(call != NULL) {
     p->main_thread = spawn_thread(newproc, start_main_thread);
-    //p->main_thread->owner_ptcb = p;
     wakeup(p->main_thread);
 
   }
@@ -335,7 +330,6 @@ void sys_Exit(int exitval)
   if(sys_GetPid()==1) {
     while(sys_WaitChild(NOPROC,NULL)!=NOPROC);
   }
-  TCB* current = CURTHREAD;
   PCB *curproc = CURPROC;  /* cache for efficiency */
 
   /* Do all the other cleanup we want here, close files etc. */
@@ -370,15 +364,12 @@ void sys_Exit(int exitval)
     rlist_push_front(& curproc->parent->exited_list, &curproc->exited_node);
     kernel_broadcast(& curproc->parent->child_exit);
   }
-  /***Exit the remaing threads*/
   
-  /* Disconnect my main_thread */
-  //free(curproc->ptcb_list.ptcb);
-  //curproc->ptcb_list.ptcb->main_thread = NULL;///TBR
   /* Now, mark the process as exited. */
   curproc->pstate = ZOMBIE;
   curproc->exitval = exitval;
 
+  /***Exit the remaing threads*/
   /* Bye-bye cruel world */
   sys_ThreadExit(exitval);
   
