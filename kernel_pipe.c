@@ -1,6 +1,5 @@
 
 #include "tinyos.h"
-<<<<<<< HEAD
 #include "kernel_streams.h"
 #include "kernel_dev.h"
 #include "kernel_proc.h"
@@ -171,12 +170,5 @@ int sys_Pipe(pipe_t* pipe)
 
 	return 0;
 
-=======
-
-
-int sys_Pipe(pipe_t* pipe)
-{
-	return -1;
->>>>>>> e65222d39cf9f36dff561b81edd0b91bab8cd4f6
 }
 
