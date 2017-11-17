@@ -50,7 +50,7 @@ PPCB* initialize_Pipe(pipe_t* pipe)
 	p->hasNoData = COND_INIT;
 
 	FCB** fcb = xmalloc(2*sizeof(FCB*));
-	Fid_t *fid = xmalloc(2*sizeof(Fid_t*));
+	Fid_t *fid = xmalloc(2*sizeof(Fid_t));
 
 	if(FCB_reserve(2,fid,fcb)==0){
 		//fprintf(stderr, "Could not reserve Fcbs \n");
@@ -67,6 +67,7 @@ PPCB* initialize_Pipe(pipe_t* pipe)
 	p->writer->streamobj = p;
 
 	pipe->read = fid[0];
+	//fprintf(stderr, "%d\n%d\n----\n",fid[0],fid[1] );
 	pipe->write = fid[1];
 
 	p->wP =0;
@@ -77,8 +78,9 @@ PPCB* initialize_Pipe(pipe_t* pipe)
 
 int pipe_read(void* this, char *buf, unsigned int size)
 {
-	PPCB* p = (PPCB*) CURPROC->FIDT[(int)this]->streamobj;
 
+	PPCB* p = (PPCB*) CURPROC->FIDT[(int)this]->streamobj;
+	
 	if (size>SIZE_OF_BUFFER)
 		return -1;
 
@@ -111,12 +113,19 @@ int pipe_read(void* this, char *buf, unsigned int size)
 }
 int pipe_write(void* this, const char* buf, unsigned int size)
 {
+	fprintf(stderr, "TWrite\n");
+
 	//TO check if *this doesnt exist and return -1
 	if (size>SIZE_OF_BUFFER)
 		return -1;
+	//Fid_t h = (Fid_t)this;
+	long t =  (long)this;
+	fprintf(stderr, "%d\n",t);
 	
-	PPCB* p = (PPCB*) CURPROC->FIDT[(int)this]->streamobj; //MAY need to check (int)this
-	//int freeSpace = find_bufferSpace(p->rP,p->wP);
+
+	PPCB* p = (PPCB*) CURPROC->FIDT[t]->streamobj; //MAY need to check (int)this
+
+	fprintf(stderr, "22TEstFormpipeWrite\n");
 	int i =0;
 	while(i<size){
 		

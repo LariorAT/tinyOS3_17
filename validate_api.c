@@ -1006,6 +1006,7 @@ BOOT_TEST(test_pipe_open,
 	int rc;
 
 	for(int i=0;i<3;i++) {
+		fprintf(stderr, "GonnaWrite----%d\n",pipe.write);
 		ASSERT((rc=Write(pipe.write, "Hello world", 12))==12);
 	}
 	char buffer[12] = { [0] = 0 };
