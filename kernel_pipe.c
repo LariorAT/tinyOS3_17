@@ -88,13 +88,26 @@ int pipe_read(void* this, char *buf, unsigned int size)
 
 	while (i<size){
 
-		/*When we reach 0 , we end the streaming*/ 
-		if(p->buffer[p->rP] == 0 && (i+1)!=size){  
+
+
+		/*When we reach 0 , we end the streaming
+		if(p->buffer[p->rP] == 0 && (i+1)!=size && p->rP != p->wP){  
 			buf[i] = p->buffer[p->rP];
-			//fprintf(stderr, "Reading from:%d word : %c\n",p->rP,p->buffer[p->rP] );
+			fprintf(stderr, "Reading from:%d word : %c\n",p->rP,p->buffer[p->rP] );
 			p->rP ++;
 			
-			return 0;
+			return i;
+		}*/ 
+		if (p->rP == p->wP)
+		{
+			if(p->writer == NULL){
+				return  i;
+			}
+			//fprintf(stderr, "Blocked : Reader\n" );
+			kernel_broadcast(& p->noSpace);
+			kernel_wait(& p->hasNoData,SCHED_IO);
+			//fprintf(stderr, "Waking : Reader\n" );
+			continue;
 		}
 		
 		if (p->rP != p->wP){
@@ -102,30 +115,27 @@ int pipe_read(void* this, char *buf, unsigned int size)
 			//fprintf(stderr, "Reading from:%d word : %c\n",p->rP,p->buffer[p->rP] );
 			p->rP ++;
 			i++;
-		}else if (p->rP == p->wP)
-		{
-			fprintf(stderr, "Blocked : Reader\n" );
-			kernel_wait(& p->hasNoData,SCHED_IO);
-			fprintf(stderr, "Waking : Reader\n" );
 		}
+
 
 		if(p->rP == SIZE_OF_BUFFER){
 			p->rP = 0;
 		}
 
-		kernel_broadcast(& p->noSpace);
+		
 	}
-
+	kernel_broadcast(& p->noSpace);
 	return i;
 }
 int pipe_write(void* this, const char* buf, unsigned int size) // TO WAKE UP CV
 {
-	
+	//fprintf(stderr, "TWRITE\n" );
 	PPCB* p = (PPCB*) this;
 	if(p == NULL)
 		return -1;
-	/*It means the Reader end of the pipe is closed*/
+	/*It means, the Reading end of the pipe, is closed*/
 	if(p->reader == NULL){
+		//fprintf(stderr, "PIPE IS CLOSED, NOT WRITTABLE\n" );
 		return -1;
 	}
 	
@@ -133,10 +143,12 @@ int pipe_write(void* this, const char* buf, unsigned int size) // TO WAKE UP CV
 	while(i<size){
 
 		/*In this case we have no space to write data, so we are blocking the thread*/
-		if((p->wP + 1)== p->rP || (p->wP == SIZE_OF_BUFFER &&p->rP == 0)){ 
-			fprintf(stderr, "Blocked : WRITER\n" );
+		if((p->wP + 1)== p->rP || ((p->wP == SIZE_OF_BUFFER -1) && p->rP == 0)){  ///////////////
+			//fprintf(stderr, "Blocked : WRITER\n" );
+			kernel_broadcast(& p->hasNoData);
 			kernel_wait(& p->noSpace,SCHED_IO);
-			fprintf(stderr, "Waking : WRITER\n" );
+			//fprintf(stderr, "Waking : WRITER\n" );
+			continue;
 		}
 
 		
@@ -146,11 +158,13 @@ int pipe_write(void* this, const char* buf, unsigned int size) // TO WAKE UP CV
 		i++;
 		/*When we reach the end of the array, we reset the pointer to 0*/
 		if(p->wP == SIZE_OF_BUFFER){
+			//fprintf(stderr, "Resetinf wPointer\n");
 			p->wP =0;
 		}
 		
-		kernel_broadcast(& p->hasNoData);
+		
 	}
+	kernel_broadcast(& p->hasNoData);
 	return i;
 }
 
@@ -166,6 +180,7 @@ int pipe_reader_close(void* this)
 int pipe_writer_close(void* this)
 {
 	PPCB* p = (PPCB*) this;
+	p->writer = NULL;
 	//fprintf(stderr, "TO CLose writer\n");
 	kernel_broadcast(& p->hasNoData);
 
