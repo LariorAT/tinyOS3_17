@@ -36,6 +36,7 @@ typedef struct Pipe_control_block{
 	CondVar hasNoData;
 	FCB * reader;
 	FCB * writer;
+	pipe_t* pipe;
 	int wP; /**reader pointer position*/
 	int rP; /**writer pointer position*/
 
@@ -67,91 +68,108 @@ PPCB* initialize_Pipe(pipe_t* pipe)
 	p->writer->streamobj = p;
 
 	pipe->read = fid[0];
-	//fprintf(stderr, "%d\n%d\n----\n",fid[0],fid[1] );
 	pipe->write = fid[1];
 
+	p->pipe = pipe;
 	p->wP =0;
-	p->rP = -1;
+	p->rP = 0;
 	return p;
 
 }
 
 int pipe_read(void* this, char *buf, unsigned int size)
 {
-
-	PPCB* p = (PPCB*) CURPROC->FIDT[(int)this]->streamobj;
+	//fprintf(stderr, "TRead\n");
+	PPCB* p = (PPCB*) this;
 	
-	if (size>SIZE_OF_BUFFER)
-		return -1;
-
-	if(p->rP ==-1){
-		return -1;
-	}
+	
+	
 	int i =0;
 
 	while (i<size){
 
-		if(p->buffer[p->rP] == 0){ /*0 indicates the end of stream*/  ///may need to check if i need to put 0 manually at pipe_write
-			return i;
+		/*When we reach 0 , we end the streaming*/ 
+		if(p->buffer[p->rP] == 0 && (i+1)!=size){  
+			buf[i] = p->buffer[p->rP];
+			//fprintf(stderr, "Reading from:%d word : %c\n",p->rP,p->buffer[p->rP] );
+			p->rP ++;
+			
+			return 0;
 		}
 		
 		if (p->rP != p->wP){
 			buf[i] = p->buffer[p->rP];
+			//fprintf(stderr, "Reading from:%d word : %c\n",p->rP,p->buffer[p->rP] );
 			p->rP ++;
 			i++;
 		}else if (p->rP == p->wP)
 		{
+			fprintf(stderr, "Blocked : Reader\n" );
 			kernel_wait(& p->hasNoData,SCHED_IO);
+			fprintf(stderr, "Waking : Reader\n" );
 		}
 
 		if(p->rP == SIZE_OF_BUFFER){
-			p->rP =0;
+			p->rP = 0;
 		}
+
+		kernel_broadcast(& p->noSpace);
 	}
 
 	return i;
 }
-int pipe_write(void* this, const char* buf, unsigned int size)
+int pipe_write(void* this, const char* buf, unsigned int size) // TO WAKE UP CV
 {
-	fprintf(stderr, "TWrite\n");
-
-	//TO check if *this doesnt exist and return -1
-	if (size>SIZE_OF_BUFFER)
-		return -1;
-	//Fid_t h = (Fid_t)this;
-	long t =  (long)this;
-	fprintf(stderr, "%d\n",t);
 	
-
-	PPCB* p = (PPCB*) CURPROC->FIDT[t]->streamobj; //MAY need to check (int)this
-
-	fprintf(stderr, "22TEstFormpipeWrite\n");
+	PPCB* p = (PPCB*) this;
+	if(p == NULL)
+		return -1;
+	/*It means the Reader end of the pipe is closed*/
+	if(p->reader == NULL){
+		return -1;
+	}
+	
 	int i =0;
 	while(i<size){
-		
-		if (p->rP != p->wP){
-			p->buffer[p->wP] = buf[i];
-			p->wP ++;
-			i++;
-		}else if (p->rP == p->wP)
-		{
+
+		/*In this case we have no space to write data, so we are blocking the thread*/
+		if((p->wP + 1)== p->rP || (p->wP == SIZE_OF_BUFFER &&p->rP == 0)){ 
+			fprintf(stderr, "Blocked : WRITER\n" );
 			kernel_wait(& p->noSpace,SCHED_IO);
+			fprintf(stderr, "Waking : WRITER\n" );
 		}
 
+		
+		p->buffer[p->wP] = buf[i];
+		//fprintf(stderr, "Writing to:%d word : %c\n",p->wP,p->buffer[p->wP] );
+		p->wP ++;
+		i++;
+		/*When we reach the end of the array, we reset the pointer to 0*/
 		if(p->wP == SIZE_OF_BUFFER){
 			p->wP =0;
 		}
 		
+		kernel_broadcast(& p->hasNoData);
 	}
 	return i;
 }
 
 int pipe_reader_close(void* this)
 {
+	PPCB* p = (PPCB*) this;
+	//fprintf(stderr, "TO CLose reader\n" );
+	p->reader = NULL;
+	free(p->buffer);
+
 	return 0;
 }
 int pipe_writer_close(void* this)
 {
+	PPCB* p = (PPCB*) this;
+	//fprintf(stderr, "TO CLose writer\n");
+	kernel_broadcast(& p->hasNoData);
+
+	
 	return 0;
 }
 /*Returns -1*/
