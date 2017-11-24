@@ -43,20 +43,15 @@ typedef struct Pipe_control_block{
 
 }PPCB;
 
-PPCB* initialize_Pipe(pipe_t* pipe)	
+
+
+PPCB* initialize_Pipe(pipe_t* pipe,Fid_t* fid,FCB** fcb)	
 {
 	PPCB* p = xmalloc(sizeof(PPCB));
 	p->buffer = xmalloc(SIZE_OF_BUFFER);
 	p->noSpace = COND_INIT;
 	p->hasNoData = COND_INIT;
 
-	FCB** fcb = xmalloc(2*sizeof(FCB*));
-	Fid_t *fid = xmalloc(2*sizeof(Fid_t));
-
-	if(FCB_reserve(2,fid,fcb)==0){
-		//fprintf(stderr, "Could not reserve Fcbs \n");
-		return NULL;
-	}
 	
 	p->reader = fcb[0];
 	p->writer = fcb[1];
@@ -74,6 +69,26 @@ PPCB* initialize_Pipe(pipe_t* pipe)
 	p->wP =0;
 	p->rP = 0;
 	return p;
+
+}
+int sys_Pipe(pipe_t* pipe)
+{
+	PPCB* p;
+
+	FCB** fcb = xmalloc(2*sizeof(FCB*));
+	Fid_t *fid = xmalloc(2*sizeof(Fid_t));
+
+	if(FCB_reserve(2,fid,fcb)==0){
+		//fprintf(stderr, "Could not reserve Fcbs \n");
+		return -1;
+	}
+
+	p = initialize_Pipe(pipe,fid,fcb);
+	
+	if(p ==NULL){
+		return -1;
+	}
+	return 0;
 
 }
 
@@ -201,16 +216,5 @@ int find_bufferSpace(int rP,int wP)
 		return SIZE_OF_BUFFER - (wP-rP);
 }*/
 
-int sys_Pipe(pipe_t* pipe)
-{
-	PPCB* p;
 
-	p = initialize_Pipe(pipe);
-	if (p == NULL){
-		return -1;
-	}
-
-	return 0;
-
-}
 
