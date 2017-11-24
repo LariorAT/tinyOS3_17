@@ -4,14 +4,8 @@
 #include "kernel_dev.h"
 #include "kernel_proc.h"
 #include "kernel_cc.h"
+#include "kernel_pipeAndSockets.h"
 
-#define SIZE_OF_BUFFER 8192
-
-int pipe_read(void* this, char *buf, unsigned int size);
-int pipe_reader_close(void* this);
-int pipe_write(void* this, const char* buf, unsigned int size);
-int pipe_writer_close(void* this);
-int pipe_Null();
 
 static file_ops reader_fops = {
   .Open = NULL,
@@ -28,21 +22,6 @@ static file_ops writer_fops =
   .Write = pipe_write,
   .Close = pipe_writer_close
 };
-
-
-typedef struct Pipe_control_block{
-	char* buffer ;
-	CondVar noSpace;
-	CondVar hasNoData;
-	FCB * reader;
-	FCB * writer;
-	pipe_t* pipe;
-	int wP; /**reader pointer position*/
-	int rP; /**writer pointer position*/
-
-
-}PPCB;
-
 
 
 PPCB* initialize_Pipe(pipe_t* pipe,Fid_t* fid,FCB** fcb)	
