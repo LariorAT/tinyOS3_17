@@ -1,5 +1,5 @@
-#ifndef __KERNEL_PIPE_H
-#define __KERNEL_PIPE_H
+#ifndef __KERNEL_PIPEANDSOCKETS_H
+#define __KERNEL_PIPEANDSOCKETS_H
 
 
 #define SIZE_OF_BUFFER 8192
@@ -22,6 +22,60 @@ typedef struct Pipe_control_block{
 
 
 }PPCB;
+
+PPCB* initialize_Pipe(pipe_t* pipe,Fid_t* fid,FCB** fcb);
+
+typedef struct Socket_Control_Block SCB;
+
+int socket_Null();
+int socket_close(void* this);
+int socket_read(void* this, char *buf, unsigned int size);
+int socket_write(void* this, char *buf, unsigned int size);
+int findFID(FCB* f);
+typedef struct Unbound_Socket
+{
+	rlnode node;
+}USocket;
+
+typedef struct Listener_Socket
+{
+	CondVar hasRequest;
+	rlnode ReqQueue;
+}LSocket;
+
+typedef struct PEER_SOCKET{
+	SCB* PeerSocket;
+	PPCB* pipeSend;
+	PPCB* pipeReceive;
+}PSocket;
+
+
+typedef enum{
+	UNBOUND_SOCKET,
+	LISTENER_SOCKET,
+	PEER_SOCKET
+}Socket_type;
+
+typedef struct Socket_Control_Block
+{
+	int ref_count;
+	FCB* fcb;
+	port_t port;
+	Socket_type type;
+	union{
+		USocket* USocket;
+		LSocket* LSocket;
+		PSocket* PSocket;
+	};
+}SCB;
+
+typedef struct Connection_Request
+{
+	CondVar condition;
+	SCB* socket;
+	int accepted;
+	rlnode node;
+}ConReq;
 
 
 #endif
