@@ -37,6 +37,7 @@ int socket_write(void* this, char *buf, unsigned int size)
 }
 int socket_close(void* this)
 {
+	
 	SCB* s = (SCB*) this;
 	if(s->type == LISTENER_SOCKET)
 	{
@@ -45,9 +46,11 @@ int socket_close(void* this)
 	
 		PORT_MAP[s->port] = 0;
 		free(s->LSocket);
-		free(s);	
+		free(s);
+		fprintf(stderr, "CLOSE LISTENER\n" );
+		return 0;
 	}
-
+	fprintf(stderr, "CLOSEEEEEEEEEEEEEEEEEEEE\n" );
 	return 0;
 }
 
@@ -90,7 +93,7 @@ Fid_t sys_Socket(port_t port )
 	s->port = port;
 	s->type = UNBOUND_SOCKET;
 	s->USocket = xmalloc(sizeof(USocket));
-	 
+	 fprintf(stderr, "CreateSOcket s-port%d\n",s->port );
 	rlnode_init(& s->USocket->node,s);
 
 	fcb[0]->streamobj = s;
@@ -104,7 +107,7 @@ int socket_Null()
 	return -1;
 }
 
-int sys_Listen(Fid_t sock)//the socket has already been initialized*
+int sys_Listen(Fid_t sock)
 {
 	fprintf(stderr, "Listener\n");
 
@@ -154,7 +157,7 @@ int sys_Listen(Fid_t sock)//the socket has already been initialized*
 	s->type = LISTENER_SOCKET;
 	PORT_MAP[s->port] = s;
 
-	fprintf(stderr, "-------------End\n");
+	//fprintf(stderr, "-------------End  PORT is : %d\n",s->port);
 
 
 
@@ -200,7 +203,8 @@ Fid_t sys_Accept(Fid_t lsock)
 		fprintf(stderr, "Maximum Fid, reached\n" );
 		return NOFILE;
 	}
-	
+
+	fprintf(stderr, "LIstener port: %d\n",ls->port );
 	SCB* u = xmalloc(sizeof(SCB));
 	u->ref_count = 1;
 	u->fcb = fcb[0];
@@ -237,7 +241,6 @@ Fid_t sys_Accept(Fid_t lsock)
 	
 
 	 
-	fprintf(stderr, "\n");
 	
 	connect_socket->type = PEER_SOCKET;
 	
@@ -267,7 +270,7 @@ Fid_t sys_Accept(Fid_t lsock)
 	if (fcb1[0] == NULL || fcb1[1] == NULL){
 		return NOFILE;
 	}
-	fprintf(stderr, "2.4\n");
+	
 	PPCB* p1 = initialize_Pipe(&pipe[0],fid1,fcb1);	
 
 	u->PSocket->pipeSend = p1;
@@ -288,7 +291,7 @@ Fid_t sys_Accept(Fid_t lsock)
 
 	connect_socket->PSocket->pipeSend = p2;
 	u->PSocket->pipeReceive = p2;
-
+	kernel_broadcast(& connect_req->condition);
 
 	return fid[0];
 }
@@ -321,6 +324,7 @@ int sys_Connect(Fid_t sock, port_t port, timeout_t timeout)
 		fprintf(stderr, "Unitialized Listener\n" );
 		return -1;
 	}
+	
 	/**Checking if lsock is initialized*/
 	if(PORT_MAP[port]->type != LISTENER_SOCKET)
 	{
@@ -336,13 +340,21 @@ int sys_Connect(Fid_t sock, port_t port, timeout_t timeout)
 	rlnode_init(& req->node,req);
 	rlist_push_back(& ls->LSocket->ReqQueue,& req->node);
 
-	fprintf(stderr, "1, \n");
+	fprintf(stderr, "COnnect wait, \n");
 
 	kernel_signal(& ls->LSocket->hasRequest);
 	kernel_timedwait(& req->condition,SCHED_IO,timeout);
 
-	fprintf(stderr, "1.2\n");
+	fprintf(stderr, "Connect wakes up\n");
+	
 	if(req->accepted == 0){
+
+		if(rlist_remove(& req->node) == NULL){
+			fprintf(stderr, "Cant remove this node, doesnt exist\n" );
+		}else {
+			fprintf(stderr, "NOde deleted succesfully\n" );
+		}
+
 		fprintf(stderr, "Timeout, Connect Failed\n" );
 		return -1;
 	}
@@ -353,7 +365,39 @@ int sys_Connect(Fid_t sock, port_t port, timeout_t timeout)
 
 int sys_ShutDown(Fid_t sock, shutdown_mode how)
 {
-	fprintf(stderr, "HIIIIIIIIIIIIIII\n");
+	fprintf(stderr, "Shutdown");
+
+	FCB* f = get_fcb(sock);
+
+	if(sock<0 || sock >= MAX_FILEID){
+		fprintf(stderr, "Invalid FID\n" );
+		return -1;
+	}
+
+	/**Checking if socket exists*/
+	if(f == NULL){
+		fprintf(stderr, "Socket doesn't exist\n" );
+		return -1;
+	}
+	SCB* s= f->streamobj;
+	/**Checking if s is a valid object*/
+	if(s == NULL){
+		fprintf(stderr, "FCB has invalid streamobj\n" );
+		return -1;
+	}
+
+	if (how == 1){
+		fprintf(stderr, " Read\n" );
+		return pipe_reader_close(s->PSocket->pipeReceive);
+	}else if (how == 2 ){
+		fprintf(stderr, " Write\n" );
+		return pipe_writer_close(s->PSocket->pipeSend);
+	}else if (how == 3){
+		fprintf(stderr, " BOTH\n" );
+		
+		return pipe_writer_close(s->PSocket->pipeSend) + pipe_reader_close(s->PSocket->pipeReceive);
+	}
+
 	return -1;
 }
 
