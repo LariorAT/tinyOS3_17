@@ -9,7 +9,7 @@
 /* The port table */
 SCB* PORT_MAP[MAX_PORT+1];
 
-
+Mutex socket_lock = MUTEX_INIT;  /**Mutex for the Creation of sockets*/
 
 
 int socket_read(void* this, char *buf, unsigned int size)
@@ -37,7 +37,8 @@ int socket_write(void* this, char *buf, unsigned int size)
 }
 int socket_close(void* this)
 {
-	
+	Mutex_Lock(& socket_lock);
+
 	SCB* s = (SCB*) this;
 	if(s->type == LISTENER_SOCKET)
 	{
@@ -48,10 +49,28 @@ int socket_close(void* this)
 		free(s->LSocket);
 		free(s);
 		fprintf(stderr, "CLOSE LISTENER\n" );
+		Mutex_Unlock(& socket_lock);
+		return 0;
+	}else if(s->type == PEER_SOCKET){
+		if(s->port != -1){			/**Checking if the pipes of s are already freed*/
+			ShutdownFCB(s->fcb,3);
+		}
+		
+		free(s->PSocket);
+		free(s);
+		fprintf(stderr, "CLOSE PEER\n" );
+		Mutex_Unlock(& socket_lock);
+		return 0;
+	}else if(s->type == UNBOUND_SOCKET){
+		free(s->USocket);
+		free(s);
+		fprintf(stderr, "CLOSE UNBOUND_SOCKET\n" );
+		Mutex_Unlock(& socket_lock);
 		return 0;
 	}
-	fprintf(stderr, "CLOSEEEEEEEEEEEEEEEEEEEE\n" );
-	return 0;
+
+	fprintf(stderr, "PROBLEM ON CLOSEEEEEEEEEEE\n" );
+	return -1;
 }
 
 static file_ops socket_fops = 
@@ -109,29 +128,30 @@ int socket_Null()
 
 int sys_Listen(Fid_t sock)
 {
+	Mutex_Lock(& socket_lock);
 	fprintf(stderr, "Listener\n");
 
 	FCB* f = get_fcb(sock);
 
 	if(sock<0 || sock >= MAX_FILEID){
 		fprintf(stderr, "Invalid FID\n" );
-		return -1;
+		goto after_Listen;
 	}
 	/**Checking if socket exists*/
 	if(f == NULL){
 		fprintf(stderr, "Socket doesn't exist\n" );
-		return -1;
+		goto after_Listen;
 	}
 	SCB* s= f->streamobj;
 	/**Checking if s is a valid object*/
 	if(s== NULL){
 		fprintf(stderr, "FCB has invalid streamobj\n" );
-		return -1;
+		goto after_Listen;
 	}
 	/**Checking if s->port is a valid port*/
 	if(s->port == NOPORT){
 		fprintf(stderr, "Invalid Port\n" );
-		return -1;
+		goto after_Listen;
 	}
 
 	/**Checking if the port is bound to another Listener*/
@@ -139,14 +159,14 @@ int sys_Listen(Fid_t sock)
 	{	
 		if (PORT_MAP[s->port]->type == LISTENER_SOCKET){
 			fprintf(stderr, "POrt is bound to another Listener\n" );
-			return -1;
+			goto after_Listen;
 		}
 	}
 	/**Checking if this socket is already initialized*/
 	if(s->type == LISTENER_SOCKET || s->type == PEER_SOCKET)
 	{
 		fprintf(stderr, "Listener already initialized\n" );
-		return -1;
+		goto after_Listen;
 	}
 
 	free(s->USocket); /** freeing the old unbound socket*/
@@ -157,18 +177,18 @@ int sys_Listen(Fid_t sock)
 	s->type = LISTENER_SOCKET;
 	PORT_MAP[s->port] = s;
 
-	//fprintf(stderr, "-------------End  PORT is : %d\n",s->port);
-
-
-
+	Mutex_Unlock(& socket_lock);
 
 	return 0;
+	after_Listen:
+	Mutex_Unlock(& socket_lock);
+	return -1;
 }
 
 
 Fid_t sys_Accept(Fid_t lsock)
 {
-	fprintf(stderr, "Accept\n");
+	fprintf(stderr, "Accept : ");
 
 	FCB* f = get_fcb(lsock);
 
@@ -219,11 +239,15 @@ Fid_t sys_Accept(Fid_t lsock)
 	fcb[0]->streamobj = u;
 	fcb[0]->streamfunc = &socket_fops;
 
-	fprintf(stderr, "Accept Waiting\n");
-	kernel_wait(& ls->LSocket->hasRequest,SCHED_IO);
-	fprintf(stderr, "Accept WAKING UP\n");
-	if (ls->port == 0){ //////////////////////////////////////////////////////////////
-		fprintf(stderr, "Listener Closed///////////////////////////////////////////////\n" );
+	if(is_rlist_empty(& ls->LSocket->ReqQueue) == 1) /** Checking if there are any pending requests*/
+	{
+		fprintf(stderr, "Accept Waiting\n");
+		kernel_wait(& ls->LSocket->hasRequest,SCHED_IO);
+		fprintf(stderr, "Accept WAKING UP\n");
+	}
+	
+	if (ls->port == 0){ 
+			fprintf(stderr, "Listener Closed\n" );
 		return NOFILE;
 	}
 
@@ -234,14 +258,10 @@ Fid_t sys_Accept(Fid_t lsock)
 		return NOFILE;
 
 	}
-	fprintf(stderr, "2\n");
+	
 	connect_req->accepted = 1;
 	SCB* connect_socket = connect_req->socket;
 
-	
-
-	 
-	
 	connect_socket->type = PEER_SOCKET;
 	
 	free(connect_socket->USocket);
@@ -302,6 +322,10 @@ int sys_Connect(Fid_t sock, port_t port, timeout_t timeout)
 	fprintf(stderr, "Connect\n");
 
 	FCB* f = get_fcb(sock);
+	if(port<0 ||port>MAX_PORT){
+		fprintf(stderr, "Invalid PORT\n" );
+		return -1;
+	}
 
 	if(sock<0 || sock >= MAX_FILEID){
 		fprintf(stderr, "Invalid FID\n" );
@@ -367,12 +391,19 @@ int sys_ShutDown(Fid_t sock, shutdown_mode how)
 {
 	fprintf(stderr, "Shutdown");
 
-	FCB* f = get_fcb(sock);
-
 	if(sock<0 || sock >= MAX_FILEID){
 		fprintf(stderr, "Invalid FID\n" );
 		return -1;
 	}
+
+	FCB* f = get_fcb(sock);
+
+	return ShutdownFCB(f,how);
+}
+
+int ShutdownFCB(FCB* fcb,shutdown_mode how)
+{
+	FCB* f = fcb;
 
 	/**Checking if socket exists*/
 	if(f == NULL){
@@ -388,13 +419,15 @@ int sys_ShutDown(Fid_t sock, shutdown_mode how)
 
 	if (how == 1){
 		fprintf(stderr, " Read\n" );
+		s->port = -1;
 		return pipe_reader_close(s->PSocket->pipeReceive);
 	}else if (how == 2 ){
 		fprintf(stderr, " Write\n" );
+		//s->port = -1;
 		return pipe_writer_close(s->PSocket->pipeSend);
 	}else if (how == 3){
 		fprintf(stderr, " BOTH\n" );
-		
+		s->port = -1;
 		return pipe_writer_close(s->PSocket->pipeSend) + pipe_reader_close(s->PSocket->pipeReceive);
 	}
 
