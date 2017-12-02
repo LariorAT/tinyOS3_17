@@ -136,6 +136,7 @@ void sys_ThreadExit(int exitval)
     /*Join the next thread in ptcb list*/
     while(curproc->counter>1)
     {
+      fprintf(stderr, "sys_ThreadExit loop\n" );
       next = &curproc->ptcb_list;
       next = next->next;
       sys_ThreadJoin((Tid_t) next->ptcb->main_thread, &exitval);
@@ -143,11 +144,12 @@ void sys_ThreadExit(int exitval)
     
   }
   /*for all threads*/
-  
+  fprintf(stderr, "sys_ThreadExit 1\n" );
   current->owner_ptcb->isExited = 1;
   current->owner_ptcb->refCounter--;
   current->owner_ptcb->exitval = exitval;
   kernel_broadcast(&current->owner_ptcb->wait_var);
+  fprintf(stderr, "sys_ThreadExit 2\n" );
   kernel_sleep(EXITED, SCHED_USER); 
 }
 

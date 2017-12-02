@@ -77,7 +77,7 @@ static file_ops socket_fops =
 {
   .Open = NULL,
   .Read = socket_read,
-  .Write = socket_write,
+  .Write = (void*)socket_write,
   .Close = socket_close
 };
 

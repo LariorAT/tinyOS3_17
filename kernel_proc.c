@@ -325,6 +325,7 @@ Pid_t sys_WaitChild(Pid_t cpid, int* status)
 
 void sys_Exit(int exitval)
 {
+  fprintf(stderr, "START OF EXIT\n" );
   /* Right here, we must check that we are not the boot task. If we are, 
      we must wait until all processes exit. */
   if(sys_GetPid()==1) {
@@ -342,7 +343,7 @@ void sys_Exit(int exitval)
       curproc->FIDT[i] = NULL;
     }
   }
-
+  fprintf(stderr, "AFTER FID WIPE ,EXIT\n" );
   /* Reparent any children of the exiting process to the 
      initial task */
   PCB* initpcb = get_pcb(1);
@@ -369,6 +370,7 @@ void sys_Exit(int exitval)
   curproc->pstate = ZOMBIE;
   curproc->exitval = exitval;
 
+  fprintf(stderr, "BEFORE ThreadExit\n" );
   /***Exit the remaing threads*/
   /* Bye-bye cruel world */
   sys_ThreadExit(exitval);
