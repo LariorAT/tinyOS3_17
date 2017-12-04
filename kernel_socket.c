@@ -105,7 +105,7 @@ Fid_t sys_Socket(port_t port )
 
 	//fprintf(stderr, "SOcket\n" );
 	SCB* s = xmalloc(sizeof(SCB));
-	s->ref_count = 1;
+	s->fid = fid[0];
 	s->fcb = fcb[0];
 	
 
@@ -226,7 +226,7 @@ Fid_t sys_Accept(Fid_t lsock)
 
 	fprintf(stderr, "LIstener port: %d\n",ls->port );
 	SCB* u = xmalloc(sizeof(SCB));
-	u->ref_count = 1;
+	u->fid = fid[0];
 	u->fcb = fcb[0];
 	
 
@@ -281,7 +281,8 @@ Fid_t sys_Accept(Fid_t lsock)
 
 	Fid_t fid1[2];
 	fid1[0] = fid[0];
-	fid1[1] = findFID(connect_socket->fcb);
+	fid1[1] = connect_socket->fid;
+	//fid1[1] = findFID(connect_socket->fcb);
 
 	FCB* fcb1[2];
 	fcb1[0] = acquire_FCB();
@@ -296,7 +297,8 @@ Fid_t sys_Accept(Fid_t lsock)
 	u->PSocket->pipeSend = p1;
 	connect_socket->PSocket->pipeReceive = p1;
 
-	fid1[0] = findFID(connect_socket->fcb);
+	//fid1[0] = findFID(connect_socket->fcb);
+	fid1[0] = connect_socket->fid;
 	fid1[1] = fid[0];
 
 	fcb1[0] = acquire_FCB();

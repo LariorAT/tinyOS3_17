@@ -32,6 +32,8 @@ int socket_close(void* this);
 int socket_read(void* this, char *buf, unsigned int size);
 int socket_write(void* this, char *buf, unsigned int size);
 int findFID(FCB* f);
+int ShutdownFCB(FCB* fcb,shutdown_mode how);
+
 typedef struct Unbound_Socket
 {
 	rlnode node;
@@ -58,7 +60,7 @@ typedef enum{
 
 typedef struct Socket_Control_Block
 {
-	int ref_count;
+	int fid;
 	FCB* fcb;
 	port_t port;
 	Socket_type type;
