@@ -7,7 +7,8 @@
 #include "kernel_pipeAndSockets.h"
 
 
-static file_ops reader_fops = {
+static file_ops reader_fops = 
+{
   .Open = NULL,
   .Read = pipe_read,
   .Write = pipe_Null,
@@ -82,6 +83,9 @@ int pipe_read(void* this, char *buf, unsigned int size)
 
 	while (i<size){
 
+		if(p->reader == NULL){
+			return -1;
+		}
 
 
 		/*When we reach 0 , we end the streaming
@@ -121,7 +125,7 @@ int pipe_read(void* this, char *buf, unsigned int size)
 	kernel_broadcast(& p->noSpace);
 	return i;
 }
-int pipe_write(void* this, const char* buf, unsigned int size) // TO WAKE UP CV
+int pipe_write(void* this, const char* buf, unsigned int size) 
 {
 	//fprintf(stderr, "TWRITE\n" );
 	PPCB* p = (PPCB*) this;
@@ -135,6 +139,9 @@ int pipe_write(void* this, const char* buf, unsigned int size) // TO WAKE UP CV
 	
 	int i =0;
 	while(i<size){
+		if(p->writer == NULL){
+			return -1;
+		}
 
 		/*In this case we have no space to write data, so we are blocking the thread*/
 		if((p->wP + 1)== p->rP || ((p->wP == SIZE_OF_BUFFER -1) && p->rP == 0)){  ///////////////
@@ -165,7 +172,7 @@ int pipe_write(void* this, const char* buf, unsigned int size) // TO WAKE UP CV
 int pipe_reader_close(void* this)
 {
 	PPCB* p = (PPCB*) this;
-	//fprintf(stderr, "TO CLose reader\n" );
+	
 	p->reader = NULL;
 	free(p->buffer);
 
@@ -175,7 +182,7 @@ int pipe_writer_close(void* this)
 {
 	PPCB* p = (PPCB*) this;
 	p->writer = NULL;
-	//fprintf(stderr, "TO CLose writer\n");
+	
 	kernel_broadcast(& p->hasNoData);
 
 	
@@ -186,14 +193,6 @@ int pipe_Null()
 {
 	return -1;
 }
-/**Returns the free space of the pipe
-int find_bufferSpace(int rP,int wP)
-{
-	if (rP > wP)
-		return rP-wP;
-	else
-		return SIZE_OF_BUFFER - (wP-rP);
-}*/
 
 
 
