@@ -123,6 +123,7 @@ Pid_t get_pid(PCB* pcb);
 /** @} */
 typedef struct infoCB{
   int counter;
+  int proccCounter;
 }iCB;
 int infoRead(void* this, char *buf, unsigned int size);
 int openInfo_close(void* this);

@@ -194,7 +194,7 @@ Pid_t sys_Exec(Task call, int argl, void* args)
 
 /*Initializing the new PTCB*/
   PTCB* p = initialize_PTCB();
-  //fprintf(stderr, "--\nPROCESS PCB : %x\n",newproc );
+  fprintf(stderr, "--\nPROCESS PCB : %x\n",newproc );
   //fprintf(stderr, "PROCESS TASK : %x\n",call );
   p->isDetached = 1;
 
@@ -405,7 +405,8 @@ Fid_t sys_OpenInfo()
   fcb[0]->streamobj = s;
   fcb[0]->streamfunc = &OpenInfo_fops;
   s->counter = 0;
-  
+  s->proccCounter = 0;
+  fprintf(stderr, "CURRENT Processes %d\n",process_count );
 	return fid[0];
 }
 int openInfo_close(void* this)
@@ -421,9 +422,22 @@ int infoRead(void* this, char *buf, unsigned int size){
   iCB* s = this;
   procinfo* p = xmalloc(sizeof(procinfo));
 
-  if( PT[s->counter].pstate == FREE){
-    return -1;
+  while(1){
+    if( PT[s->counter].pstate != FREE){
+      s->proccCounter++;
+      //s->counter++;
+      //fprintf(stderr, "test123\n" );
+      break;
+    }else{
+      //fprintf(stderr, "123test123\n" );
+      if(s->proccCounter==process_count){
+        return -1;
+      }
+      
+    }
+    s->counter++;
   }
+  
   
   PCB* pcb = &PT[s->counter];
   
@@ -453,9 +467,9 @@ int infoRead(void* this, char *buf, unsigned int size){
   //memcpy(p->args,ptcb->args,PROCINFO_MAX_ARGS_SIZE);
   memcpy(p->args,ptcb->args,ptcb->argl); 
 
-  s->counter++;
-
   
+
+  s->counter++;
   memcpy(buf,p,sizeof(procinfo));
   return 1;
 }
