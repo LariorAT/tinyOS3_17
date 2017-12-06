@@ -299,10 +299,11 @@ void kernel_broadcast(CondVar* cv)
 }
 
 void kernel_sleep(Thread_state newstate, enum SCHED_CAUSE cause)
-{
+{	
 	Mutex_Lock(& kernel_mutex);
 	kernel_sem++;
 	Cond_Signal(&kernel_sem_cv);
+	//fprintf(stderr, "KERNEL SLEEP\n");
 	sleep_releasing(newstate, &kernel_mutex, cause, NO_TIMEOUT);
 }
 

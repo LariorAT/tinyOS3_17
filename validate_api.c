@@ -10,6 +10,7 @@
 #include "symposium.h"
 #include "tinyoslib.h"
 #include "unit_testing.h"
+#include "kernel_sched.h"
 
 
 /*
@@ -947,7 +948,7 @@ BOOT_TEST(test_exit_many_threads,
 {
 
 	int task(int argl, void* args) {
-		fibo(45);
+		fibo(25);
 		return 2;
 	}
 
@@ -955,7 +956,7 @@ BOOT_TEST(test_exit_many_threads,
 		for(int i=0;i<5;i++)
 			ASSERT(CreateThread(task, 0, NULL) != NOTHREAD);
 
-		fibo(35);
+		fibo(25);
 		return 0;
 	}
 
@@ -1006,7 +1007,7 @@ BOOT_TEST(test_pipe_open,
 	int rc;
 
 	for(int i=0;i<3;i++) {
-		fprintf(stderr, "GonnaWrite----%d\n",pipe.write);
+		
 		ASSERT((rc=Write(pipe.write, "Hello world", 12))==12);
 	}
 	char buffer[12] = { [0] = 0 };
@@ -1089,6 +1090,7 @@ int data_producer(int argl, void* args)
 	while(nbytes>0) {
 		unsigned int n = (nbytes<32768) ? nbytes : 32768;
 		int rc = Write(1, buffer, n);
+		//fprintf(stderr, "Writer Returned : %d\n",rc );
 		assert(rc>0);
 		nbytes -= rc;
 	}
@@ -1113,6 +1115,7 @@ int data_consumer(int argl, void* args)
 		assert(rc>=0);
 		count += rc;
 	}
+	//afprintf(stderr, "Read Returned:%d\n",count );
 	ASSERT(count == nbytes);
 	return 0;
 }
@@ -1242,7 +1245,7 @@ void connect_sockets(Fid_t sock1, Fid_t lsock, Fid_t* sock2, port_t port)
 	ASSERT(t2!=NOTHREAD);
 	ASSERT(ThreadJoin(t1, NULL)==0);
 	ASSERT(ThreadJoin(t2, NULL)==0);
-
+	//fprintf(stderr, "END OF CONNECT_SOCKETS\n" );
 }
 void check_transfer(Fid_t from, Fid_t to)
 {
@@ -1260,7 +1263,10 @@ BOOT_TEST(test_socket_constructor_many_per_port,
 {
 	for(Fid_t f=0; f<MAX_FILEID; f++) {
 		ASSERT(Socket(100)!=NOFILE);
+		
 	}
+
+	
 	return 0;
 }
 
@@ -1272,6 +1278,7 @@ BOOT_TEST(test_socket_constructor_out_of_fids,
 		ASSERT(Socket(100)!=NOFILE);
 	for(int i=0;i<MAX_FILEID;i++)
 		ASSERT(Socket(100)==NOFILE);	
+	
 	return 0;
 }
 
@@ -1279,13 +1286,14 @@ BOOT_TEST(test_socket_constructor_illegal_port,
 	"Test that the socket constructor fails on illegal port"
 	)
 {
-	ASSERT(Socket(NOPORT)!=NOFILE);
+	ASSERT(Socket(NOPORT)!=NOFILE); /////////
 	ASSERT(Socket(1)!=NOFILE);
 	ASSERT(Socket(MAX_PORT)!=NOFILE);
 
 	ASSERT(Socket(NOPORT-1)==NOFILE);
 	ASSERT(Socket(MAX_PORT+1)==NOFILE);	
 	ASSERT(Socket(MAX_PORT+10)==NOFILE);
+	
 	return 0;	
 }
 
@@ -1294,6 +1302,7 @@ BOOT_TEST(test_listen_success,
 	)
 {
 	ASSERT(Listen(Socket(100))==0);
+	
 	return 0;
 }
 
@@ -1305,6 +1314,7 @@ BOOT_TEST(test_listen_fails_on_bad_fid,
 	ASSERT(Listen(OpenNull())==-1);
 	ASSERT(Listen(NOFILE)==-1);
 	ASSERT(Listen(MAX_FILEID)==-1);	
+	
 	return 0;
 }
 
@@ -1313,6 +1323,7 @@ BOOT_TEST(test_listen_fails_on_NOPORT,
 	)
 {
 	ASSERT(Listen(Socket(NOPORT))==-1);
+	
 	return 0;
 }
 
@@ -1325,6 +1336,7 @@ BOOT_TEST(test_listen_fails_on_occupied_port,
 	ASSERT(Listen(Socket(100))==-1);
 	Close(f);
 	ASSERT(Listen(Socket(100))==0);	
+	
 	return 0;
 }
 
@@ -1340,6 +1352,7 @@ BOOT_TEST(test_listen_fails_on_initialized_socket,
 	connect_sockets(sock[0], lsock, sock+1, 100);
 	ASSERT(Listen(sock[0])==-1);
 	ASSERT(Listen(sock[1])==-1);
+	
 	return 0;
 }
 
@@ -1589,7 +1602,7 @@ BOOT_TEST(test_socket_single_producer,
 
 	Fid_t srv;
 	connect_sockets(0, 2, &srv, 100);
-
+	
 	if(srv!=1) {
 		ASSERT(Dup2(srv,1)==0);
 		ASSERT(Close(srv)==0);
@@ -1598,12 +1611,14 @@ BOOT_TEST(test_socket_single_producer,
 	int N = 10000000;
 	ASSERT(Exec(data_consumer, sizeof(N), &N)!=NOPROC);
 	ASSERT(Exec(data_producer, sizeof(N), &N)!=NOPROC);
-
+	
 	Close(0);
 	Close(1);
 
+	
 	WaitChild(NOPROC,NULL);
 	WaitChild(NOPROC,NULL);
+	
 	return 0;
 }
 

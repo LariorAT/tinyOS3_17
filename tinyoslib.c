@@ -114,14 +114,16 @@ static int exec_wrapper(int argl, void* args)
 
 int ParseProcInfo(procinfo* pinfo, Program* prog, int argc, const char** argv )
 {
-	if(pinfo->main_task != exec_wrapper)
+	if(pinfo->main_task != exec_wrapper){
 		/* We do not recognize the format! */
+		fprintf(stderr, "%s\n","Error on format" );
 		return -1;
-
-	if(pinfo->argl > PROCINFO_MAX_ARGS_SIZE) 
+	}
+	if(pinfo->argl > PROCINFO_MAX_ARGS_SIZE) {
 		/* The full argument is not available */
+		fprintf(stderr, "%s\n","Error on format2" );
 		return -1;
-
+	}
 	int argl = pinfo->argl;
 	void* args = pinfo->args;
 
@@ -138,7 +140,6 @@ int ParseProcInfo(procinfo* pinfo, Program* prog, int argc, const char** argv )
 			argc = N;
 		argvunpack(argc, argv, argl, args);
 	}
-
 	return N;		
 }
 

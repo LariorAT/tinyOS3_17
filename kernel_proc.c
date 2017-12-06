@@ -194,6 +194,8 @@ Pid_t sys_Exec(Task call, int argl, void* args)
 
 /*Initializing the new PTCB*/
   PTCB* p = initialize_PTCB();
+  //fprintf(stderr, "--\nPROCESS PCB : %x\n",newproc );
+  //fprintf(stderr, "PROCESS TASK : %x\n",call );
   p->isDetached = 1;
 
   /* Set the main thread's function */
@@ -325,7 +327,6 @@ Pid_t sys_WaitChild(Pid_t cpid, int* status)
 
 void sys_Exit(int exitval)
 {
-  fprintf(stderr, "START OF EXIT\n" );
   /* Right here, we must check that we are not the boot task. If we are, 
      we must wait until all processes exit. */
   if(sys_GetPid()==1) {
@@ -343,7 +344,7 @@ void sys_Exit(int exitval)
       curproc->FIDT[i] = NULL;
     }
   }
-  fprintf(stderr, "AFTER FID WIPE ,EXIT\n" );
+  //fprintf(stderr, "AFTER FID WIPE ,EXIT\n" );
   /* Reparent any children of the exiting process to the 
      initial task */
   PCB* initpcb = get_pcb(1);
@@ -370,17 +371,92 @@ void sys_Exit(int exitval)
   curproc->pstate = ZOMBIE;
   curproc->exitval = exitval;
 
-  fprintf(stderr, "BEFORE ThreadExit\n" );
+  
   /***Exit the remaing threads*/
   /* Bye-bye cruel world */
   sys_ThreadExit(exitval);
   
 }
-
+int return_NullOI()
+{
+  return -1;
+}
+static file_ops OpenInfo_fops = 
+{
+  .Open = (void*)return_NullOI,
+  .Read = infoRead,
+  .Write = return_NullOI,
+  .Close = openInfo_close
+};
 
 
 Fid_t sys_OpenInfo()
 {
-	return NOFILE;
+  FCB** fcb = xmalloc(sizeof(FCB*));
+  Fid_t* fid = xmalloc(sizeof(Fid_t));
+
+
+  if(FCB_reserve(1,fid,fcb) == 0){
+    fprintf(stderr, "Maximum Fid, reached\n" );
+    return NOFILE;
+  }
+
+  iCB* s = xmalloc(sizeof(iCB));
+  fcb[0]->streamobj = s;
+  fcb[0]->streamfunc = &OpenInfo_fops;
+  s->counter = 0;
+  
+	return fid[0];
+}
+int openInfo_close(void* this)
+{
+  iCB* s = this;
+  free(s);
+  return 0;
+}
+
+
+int infoRead(void* this, char *buf, unsigned int size){
+  
+  iCB* s = this;
+  procinfo* p = xmalloc(sizeof(procinfo));
+
+  if( PT[s->counter].pstate == FREE){
+    return -1;
+  }
+  
+  PCB* pcb = &PT[s->counter];
+  
+
+  p->pid = get_pid(pcb);
+
+ 
+  
+  p->ppid = get_pid(pcb->parent);
+  
+  if(pcb->pstate == ZOMBIE){
+    p->alive = 0;
+  }else{
+    p->alive = 1;
+  }
+  
+  p->thread_count = pcb->counter;
+  
+  PTCB* ptcb = ((PTCB*)rlist_pop_front(& pcb->ptcb_list)->obj);
+  
+  p->main_task = ptcb->main_task;
+  
+  p->argl = ptcb->argl;
+
+
+  //strncpy(&p->args,ptcb->args,PROCINFO_MAX_ARGS_SIZE);
+  //memcpy(p->args,ptcb->args,PROCINFO_MAX_ARGS_SIZE);
+  memcpy(p->args,ptcb->args,ptcb->argl); 
+
+  s->counter++;
+
+  
+  memcpy(buf,p,sizeof(procinfo));
+  return 1;
 }
 

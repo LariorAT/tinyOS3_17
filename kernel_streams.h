@@ -30,7 +30,7 @@
 	@{
 */
 
-
+FCB* acquire_FCB();
 
 /** @brief The file control block.
 

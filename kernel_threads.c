@@ -7,7 +7,7 @@
 
 
 
-
+Mutex td = MUTEX_INIT;
 
 /** 
   @brief Create a new thread in the current process.
@@ -26,7 +26,7 @@ Tid_t sys_CreateThread(Task task, int argl, void* args)
   curproc->counter++; //may need mutex_lock TBC
   p->main_thread = spawn_thread(curproc, start_main_thread);
   wakeup(p->main_thread);
-	/*return the TCB Adress as Thread ID*/
+  /*return the TCB Adress as Thread ID*/
   return (Tid_t)p->main_thread;
 }
 
@@ -36,7 +36,7 @@ Tid_t sys_CreateThread(Task task, int argl, void* args)
 Tid_t sys_ThreadSelf()
 {
 
-	return (Tid_t) CURTHREAD;
+  return (Tid_t) CURTHREAD;
 }
 
 /**
@@ -89,7 +89,6 @@ int sys_ThreadJoin(Tid_t tid, int* exitval)
 
   if(exitval!=NULL)
     *exitval = tempPTCB->ptcb->exitval; //Save the exit value
- 
   if(tempPTCB->ptcb->isExited == 1) /*If the thread is exited*/
     { /*If none is waiting we release the ptcb */
       if(tempPTCB->ptcb->refCounter==0) 
@@ -99,7 +98,7 @@ int sys_ThreadJoin(Tid_t tid, int* exitval)
           curproc->counter--;
         }
     }
-	return 0;
+  return 0;
 }
 
 /**
@@ -125,31 +124,42 @@ int sys_ThreadDetach(Tid_t tid)
   */
 void sys_ThreadExit(int exitval)
 {
+  Mutex_Lock(&td);
   /***Local copies for speed*/
   TCB* current = CURTHREAD; 
   PCB * curproc = CURPROC; 
-
+Mutex_Unlock(&td);
   /***Incase of Main thread in process we clean all the other pthreads in process*/
   if(current->owner_ptcb==current->owner_pcb->ptcb_list.ptcb ) 
   {
+     Mutex_Lock(&td);
     rlnode* next = &curproc->ptcb_list;
     /*Join the next thread in ptcb list*/
-    while(curproc->counter>1)
+    //fprintf(stderr, "exitingggg\n");
+    Mutex_Unlock(&td);
+    while(curproc->counter>1&&((Tid_t)next->ptcb->main_thread!=(Tid_t)current))
     {
-      fprintf(stderr, "sys_ThreadExit loop\n" );
+      Mutex_Lock(&td);
+      //TCB* current = CURTHREAD; 
+      //fprintf(stderr, "sys_ThreadExit loop\n" );
       next = &curproc->ptcb_list;
       next = next->next;
+      Mutex_Unlock(&td);
       sys_ThreadJoin((Tid_t) next->ptcb->main_thread, &exitval);
     }
     
   }
   /*for all threads*/
-  fprintf(stderr, "sys_ThreadExit 1\n" );
+  if(current->owner_ptcb->isExited==0)
+  {
+  Mutex_Lock(&td);
+  //fprintf(stderr, "sys_ThreadExit 1\n" );
   current->owner_ptcb->isExited = 1;
   current->owner_ptcb->refCounter--;
   current->owner_ptcb->exitval = exitval;
   kernel_broadcast(&current->owner_ptcb->wait_var);
-  fprintf(stderr, "sys_ThreadExit 2\n" );
+  //fprintf(stderr, "sys_ThreadExit 2\n" );
+  Mutex_Unlock(&td);
   kernel_sleep(EXITED, SCHED_USER); 
+ }
 }
-

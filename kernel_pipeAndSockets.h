@@ -27,7 +27,7 @@ PPCB* initialize_Pipe(pipe_t* pipe,Fid_t* fid,FCB** fcb);
 
 typedef struct Socket_Control_Block SCB;
 
-int socket_Null();
+int return_Null();
 int socket_close(void* this);
 int socket_read(void* this, char *buf, unsigned int size);
 int socket_write(void* this, char *buf, unsigned int size);
@@ -78,6 +78,7 @@ typedef struct Connection_Request
 	int accepted;
 	rlnode node;
 }ConReq;
+
 
 
 #endif

@@ -172,6 +172,7 @@ int SystemInfo(size_t argc, const char** argv)
 	if(finfo!=NOFILE) {
 		/* Print per-process info */
 		procinfo info;
+		
 		printf("%5s %5s %6s %8s %20s\n",
 			"PID", "PPID", "State", "Threads", "Main program"
 			);
@@ -179,6 +180,7 @@ int SystemInfo(size_t argc, const char** argv)
 		while(Read(finfo, (char*) &info, sizeof(info)) > 0) {
 			Program prog=NULL;
 			const char* argv[10];
+			
 			int argc = ParseProcInfo(&info, &prog, 10, argv);
 
 			const char* pname = "-";

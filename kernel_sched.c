@@ -33,6 +33,7 @@
   +-------------+
 
   Advantages: (a) unified memory area for stack and TCB (b) stack overrun will
+
   crash own thread, before it affects other threads (which may make debugging
   easier).
 
@@ -43,6 +44,7 @@
 
 /* 
   A counter for active threads. By "active", we mean 'existing', 
+  
   with the exception of idle threads (they don't count).
  */
 volatile unsigned int active_threads = 0;
@@ -422,7 +424,7 @@ void sleep_releasing(Thread_state state, Mutex* mx, enum SCHED_CAUSE cause, Time
  
   /* Release the schduler spinlock before calling yield() !!! */
   Mutex_Unlock(& sched_spinlock);
- 
+ //fprintf(stderr, "BEFORE YIELD< SLEEP RELEASING\n");
   /* call this to schedule someone else */
   yield(cause);
 
@@ -465,8 +467,9 @@ void yield(enum SCHED_CAUSE cause)
   }
 
   /* Get next */
+  //fprintf(stderr, "YIeld before queue select\n");
   TCB* next = sched_queue_select(cause);
-
+ //fprintf(stderr, "YIeld after queue select\n");
   /* Maybe there was nothing ready in the scheduler queue ? */
   if(next==NULL) {
     if(current_ready)
