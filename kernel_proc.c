@@ -194,7 +194,7 @@ Pid_t sys_Exec(Task call, int argl, void* args)
 
 /*Initializing the new PTCB*/
   PTCB* p = initialize_PTCB();
-  fprintf(stderr, "--\nPROCESS PCB : %x\n",newproc );
+  //fprintf(stderr, "--\nPROCESS PCB : %x\n",newproc );
   //fprintf(stderr, "PROCESS TASK : %x\n",call );
   p->isDetached = 1;
 
@@ -425,11 +425,9 @@ int infoRead(void* this, char *buf, unsigned int size){
   while(1){
     if( PT[s->counter].pstate != FREE){
       s->proccCounter++;
-      //s->counter++;
-      //fprintf(stderr, "test123\n" );
+      
       break;
     }else{
-      //fprintf(stderr, "123test123\n" );
       if(s->proccCounter==process_count){
         return -1;
       }
@@ -456,17 +454,17 @@ int infoRead(void* this, char *buf, unsigned int size){
   
   p->thread_count = pcb->counter;
   
-  PTCB* ptcb = ((PTCB*)rlist_pop_front(& pcb->ptcb_list)->obj);
+
+  PTCB* ptcb =  pcb->ptcb_list.ptcb;
   
   p->main_task = ptcb->main_task;
   
   p->argl = ptcb->argl;
 
 
-  //strncpy(&p->args,ptcb->args,PROCINFO_MAX_ARGS_SIZE);
-  //memcpy(p->args,ptcb->args,PROCINFO_MAX_ARGS_SIZE);
-  memcpy(p->args,ptcb->args,ptcb->argl); 
 
+  memcpy(p->args,ptcb->args,ptcb->argl); 
+  
   
 
   s->counter++;

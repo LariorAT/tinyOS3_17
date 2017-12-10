@@ -188,6 +188,7 @@ int SystemInfo(size_t argc, const char** argv)
 				pname = argv[0];
 			} else if(argc==-1) {
 				/* Try to give some known names */
+				if(info.pid==0) pname = "init0";
 				if(info.pid==1) pname = "init";
 			}
 
@@ -519,14 +520,12 @@ int RemoteServer(size_t argc, const char** argv)
 			printf("Quitting\n");
 			Close(GS(listener_socket));
 			ThreadJoin(GS(listener), NULL);
-
 			Mutex_Lock(&GS(mx));
 			while(GS(active_conn)>0) {
 				printf("Waiting %zu connections ...\n", GS(active_conn));
 				Cond_Wait(&GS(mx), &GS(conn_done));
 			}
 			Mutex_Unlock(&GS(mx));
-			
 			
 			log_truncate(__globals);
 			break;
@@ -550,6 +549,8 @@ int RemoteServer(size_t argc, const char** argv)
 
 	fclose(fin);
 	free(linebuff);
+	
+
 	return 0;
 }
 
